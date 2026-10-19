@@ -1,0 +1,26 @@
+# Security boundaries and outstanding controls
+
+Report suspected vulnerabilities privately to repository owners. Do not disclose secrets or customer records in GitHub issues. No security contact address was supplied; owners must establish one before public launch.
+
+## Implemented
+
+- Better Auth password hashing, mandatory verified email, signed HttpOnly sessions, secure cookies in production, explicit CSRF and origin checks, database auth rate limits, seven-day session lifetime and reset-time session revocation.
+- Every tenant read/write checks current membership; owners alone manage roles/removal. Concurrent last-owner changes serialize using PostgreSQL transaction advisory locks.
+- Invitation tokens use 256 random bits, SHA-256 storage, expiry, email matching and atomic single-use consumption. Private invite links use URL fragments so tokens do not enter server request logs. Auth recovery/verification paths are excluded from development request logging.
+- Zod validation, ORM parameterization, no submitted data or secrets in application logs, generic client-facing failures, authenticated member directory, and atomic audit writes.
+- Next.js action CSRF/body-size defenses and browser headers (nosniff, DENY framing, no-referrer, restrictive permissions and baseline CSP).
+
+## Production gates
+
+This milestone is production-oriented application code, not a declaration of operational production readiness. No deployment was performed.
+
+1. Configure HTTPS and trusted reverse proxy header sanitation. Do not expose an ingress that lets callers forge the client IP used by auth rate limits. Implement distributed action/mail abuse controls.
+2. Set strong unique secrets, PostgreSQL TLS, least-privilege runtime credentials, production SMTP with TLS/authentication and verified sending domain. Mailpit is local only.
+3. Decide signup policy and add MFA, session inventory/revocation, account lifecycle, verified-email resend and recovery abuse tests.
+4. Add RLS defense in depth, backup/restore verification, retention policies and tamper-resistant audit export.
+5. Replace the current inline-compatible CSP with tested nonces, and add ingress HSTS after HTTPS validation.
+6. Run real browser, accessibility, multi-instance rate-limit and dependency security checks before launch. Bound invitation/action volumes and add a durable mail outbox before scale.
+
+## Dependency advisory status
+
+The reviewed Prisma 6 dependency chain had an advisory in deepmerge-ts; Prisma 7.10.1 resolves it. The current Next.js ESLint and Prisma development tooling depend on braces <=3.0.3, reported as GHSA-vfj7-8cjw-p6xm (deeply nested glob-pattern stack exhaustion). The registry has no patched braces release at the time of this milestone. Inputs here are repository-maintained development patterns; this is not a public application endpoint. Do not process untrusted patterns with these tools. `npm audit` reports high-severity development dependency paths; do not describe the full dependency tree as vulnerability-free. Record exact audit results in validation evidence and track an upstream compatible fix. Do not downgrade Next.js or disable checks to conceal the advisory.

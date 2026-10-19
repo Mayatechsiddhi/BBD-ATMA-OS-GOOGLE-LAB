@@ -1,0 +1,45 @@
+name: Foundation validation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, MIT
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6, MIT
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run licenses:inventory
+      - run: git diff --exit-code -- docs/dependency-licenses.json
+      - run: npm rebuild esbuild
+      - run: node scripts/init-dev.mjs
+      - run: docker compose -p bbd-atma-dev up -d --wait
+      - run: npm run db:generate:wasm
+      - run: npm run db:migrate:wasm
+      - run: npm run db:migrate:wasm
+      - run: npm run db:test:prepare
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:integration
+      - run: npm run build
+      - name: Test actual Next.js requests and Server Actions
+        shell: bash
+        run: |
+          npm run dev > /tmp/bbd-next.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          curl --retry 30 --retry-connrefused --retry-delay 1 --fail --silent http://localhost:3000/api/health
+          npm run test:http
+      - name: Check production dependency advisories
+        run: npm audit --omit=dev --audit-level=high

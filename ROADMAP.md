@@ -17,7 +17,8 @@ Commercial client-delivery target supplied in Issue #1: **26 November 2026**. Th
 - [x] Deployment runbook without deployment.
 - [x] Architecture, engineering instructions, source/license audit, security policy and environment examples.
 - [x] Reconcile the Issue #1 text supplied by the user; direct API retrieval remains blocked.
-- [ ] Push reviewed branch and open PR with verified evidence (Git access and API authorization verified separately).
+- [x] Commit and push `feat/issue-1-production-foundation` to the existing origin.
+- [ ] Open PR: both GraphQL and REST API creation attempts returned Forbidden. PR text is ready in `docs/PR_DESCRIPTION.md`; GitHub provided a manual creation link.
 
 ## Next production task — harden identity and onboarding
 

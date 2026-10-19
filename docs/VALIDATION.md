@@ -51,3 +51,11 @@ Tests create isolated fixture identities and organizations and remove only those
 - Persistence: `prisma/schema.prisma` and the foundation/client-workflow SQL migrations.
 - Verification/setup: `tests`, `scripts`, digest-pinned `compose.yaml`, environment example, exact dependency manifest/lockfile and SHA-pinned CI workflow.
 - Continuity/audit: AGENTS.md, ARCHITECTURE.md, ROADMAP.md, SECURITY.md, README.md, DEPLOYMENT.md, source/license audit, SPDX inventory, dependency audit snapshot and preserved upstream notices.
+
+## Git publishing handoff
+
+Foundation code was committed as `bbf15be` and successfully pushed to `origin/feat/issue-1-production-foundation` in the existing repository. PR creation was attempted using both `gh pr create` (GraphQL) and the REST pulls endpoint; both returned Forbidden from the current environment route. No PR number or successful creation response was returned, so no existing PR is claimed.
+
+GitHub's successful push response supplied this manual creation link: https://github.com/bloomdigital369-hue/BBD-MASTER-ATMA-OS/pull/new/feat/issue-1-production-foundation . Use the title/body in `docs/PR_DESCRIPTION.md`, or retry the API after the saved api.github.com network setting is applied. No additional token is requested; injected Git authentication already supports push.
+
+The cloud configuration draft save confirmed persistence of install_script and start_skill, plus the requested network domains. Review/save those settings and publish the cloud environment to retain the prepared snapshot; this is separate from application deployment, which was not performed. A fresh-task restore has not been tested.

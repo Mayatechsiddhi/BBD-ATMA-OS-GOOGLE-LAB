@@ -20,14 +20,15 @@ This checkout is the commercial BBD Master ATMA OS product. Read `ARCHITECTURE.m
 - Keep secrets out of source, responses, URLs, screenshots and logs. `.env` is local and ignored.
 - Derive the actor from `requireSession()` inside every Server Action. Never accept an actor ID from a browser. Re-read membership in a transaction for every tenant operation.
 - Route tenant reads and writes through the organization/CRM services and `src/modules/organizations/access.ts`. UI visibility is not authorization. No cross-request caching of sessions or permissions.
-- Add organizationId and scoped keys/foreign keys to every new tenant business model. Tenant isolation currently lives in the service layer, not PostgreSQL RLS; do not claim RLS exists.
+- Add organizationId and scoped keys/foreign keys to every new tenant business model. The five current tenant tables use FORCE RLS; see docs/TENANT_ISOLATION.md for the exact trust boundary. Keep both service authorization and RLS, and use composite tenant foreign keys for new child records.
 - Tenant mutations and audit events commit together. Serialize access-changing writes and preserve at least one owner. Add negative cross-tenant and concurrency tests with new mutations.
 - Keep reusable UI primitives under `src/components/ui`, domain logic under `src/modules`, HTTP and presentation under `src/app`.
+- The application must use RUNTIME_DATABASE_URL with a non-owner, non-bypass role; DATABASE_URL is migration/fixture-only. Never make privileged fallback connections from src/. Actor/tenant context must use withActor/withOrganization inside one Prisma transaction, with transaction-local settings and the transaction-ID stamp. Private-schema functions must revoke PUBLIC execute, use fixed search paths, and receive individually reviewed grants; the integration inventory rejects exposed functions. Never use session-level SET for application tenant context or global db queries inside a scoped callback. Test missing/forged contexts, unscoped reads, writes, pooling rollback and every new tenant table.
 - No secrets or access tokens in agent prompts. Future AI execution must authorize tenant, tool and resource and record approvals before side effects.
 
 ## Checks
 
-See README for setup. Required: `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:integration`, `npm run build`, and `npm run test:http` against a running local development server. Integration tests require a separate migrated database ending `_test` and local Mailpit. Tests remove only their own fixtures; never reset an existing database.
+See README for setup. Required: `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:integration`, `npm run build`, `npm run test:migrations`, and `npm run test:http` against a running local development server. Integration tests require a separate migrated database ending `_test` and local Mailpit. Tests remove only their own fixtures; never reset an existing database.
 
 On cloud machines with an unwritable home cache, export `npm_config_cache=/workspace/.npm-cache`. Default Prisma CLI commands require `binaries.prisma.sh`; the pinned `db:generate:wasm` and `db:migrate:wasm` development fallback is documented and tested. Do not disable TLS, checksum, signature, CSRF or authorization checks to make tests pass.
 

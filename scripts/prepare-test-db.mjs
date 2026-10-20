@@ -36,4 +36,14 @@ const result = spawnSync("node", ["scripts/prisma-wasm.mjs", "migrate"], {
   stdio: "inherit",
   env: { ...process.env, DATABASE_URL: source },
 });
-process.exit(result.status ?? 1);
+if (result.status !== 0) process.exit(result.status ?? 1);
+const runtime = process.env.TEST_RUNTIME_DATABASE_URL;
+if (!runtime)
+  throw new Error(
+    "TEST_RUNTIME_DATABASE_URL is required; provision the local runtime role first",
+  );
+const grants = spawnSync("node", ["scripts/configure-local-runtime.mjs"], {
+  stdio: "inherit",
+  env: { ...process.env, DATABASE_URL: source, RUNTIME_DATABASE_URL: runtime },
+});
+process.exit(grants.status ?? 1);

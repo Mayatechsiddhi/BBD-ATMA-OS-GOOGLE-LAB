@@ -4,6 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
 import { sendAccountEmail } from "./mail";
 export const auth = betterAuth({
+  user: { deleteUser: { enabled: false } },
   appName: "BBD Master ATMA OS",
   database: prismaAdapter(db, { provider: "postgresql" }),
   emailAndPassword: {

@@ -53,6 +53,19 @@ if (command === "generate") {
     adapterName: pg.adapterName,
     connect: async () => {
       const adapter = await pg.connect();
+      // pg's simple-query protocol understands dollar-quoted functions and comments.
+      // adapter-pg 7.10.1 splits executeScript at every semicolon, corrupting these.
+      adapter.executeScript = async (script) => {
+        const connection = await adapter.underlyingDriver().connect();
+        try {
+          await connection.query(script);
+        } catch (error) {
+          await connection.query("ROLLBACK");
+          throw error;
+        } finally {
+          connection.release();
+        }
+      };
       connections.push(adapter);
       return adapter;
     },

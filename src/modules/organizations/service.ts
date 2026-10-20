@@ -1,7 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import { type Role } from "@/generated/prisma/client";
 import { z } from "zod";
-import { db } from "../../lib/db";
+import {
+  withActor,
+  setOrganizationContext,
+  bootstrapOrganization,
+} from "@/lib/tenant-context";
 import { AccessError } from "./policy";
 import { withOrganization, audit } from "./access";
 import {
@@ -14,19 +18,22 @@ const hash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 export async function createOrganization(userId: string, input: unknown) {
   const data = organizationInput.parse(input);
-  return db.$transaction(async (tx) => {
-    const org = await tx.organization.create({
-      data: { ...data, memberships: { create: { userId, role: "OWNER" } } },
-    });
-    await audit(tx, org.id, userId, "organization.created");
-    return org;
-  });
+  return withActor(userId, (tx) =>
+    bootstrapOrganization(
+      tx,
+      randomBytes(16).toString("hex"),
+      data.name,
+      data.slug,
+    ),
+  );
 }
 export async function listOrganizations(userId: string) {
-  return db.organization.findMany({
-    where: { memberships: { some: { userId } } },
-    orderBy: { createdAt: "asc" },
-  });
+  return withActor(userId, (tx) =>
+    tx.organization.findMany({
+      where: { memberships: { some: { userId } } },
+      orderBy: { createdAt: "asc" },
+    }),
+  );
 }
 export async function getOrganization(userId: string, organizationId: string) {
   return withOrganization(userId, organizationId, "read", async (tx, role) => ({
@@ -100,48 +107,54 @@ export async function createInvitation(
 }
 export async function acceptInvitation(userId: string, rawToken: string) {
   const token = tokenInput.parse(rawToken);
-  return db.$transaction(async (tx) => {
-    const invitation = await tx.invitation.findUnique({
-      where: { tokenHash: hash(token) },
-    });
-    if (!invitation) throw new AccessError();
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${invitation.organizationId}, 0))`;
-    const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-    if (!user.emailVerified || user.email.toLowerCase() !== invitation.email)
-      throw new AccessError();
-    const consumed = await tx.invitation.updateMany({
-      where: {
-        id: invitation.id,
-        acceptedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      data: { acceptedAt: new Date() },
-    });
-    if (consumed.count !== 1) throw new AccessError();
-    // Existing members retain their role; an invitation cannot promote an existing account.
-    await tx.membership.upsert({
-      where: {
-        organizationId_userId: {
+  return withActor(
+    userId,
+    async (tx) => {
+      const invitation = await tx.invitation.findUnique({
+        where: { tokenHash: hash(token) },
+      });
+      if (!invitation) throw new AccessError();
+      await setOrganizationContext(tx, invitation.organizationId);
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${invitation.organizationId}, 0))`;
+      const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      if (!user.emailVerified || user.email.toLowerCase() !== invitation.email)
+        throw new AccessError();
+      // Existing members retain their role; an invitation cannot promote an existing account.
+      await tx.membership.upsert({
+        where: {
+          organizationId_userId: {
+            organizationId: invitation.organizationId,
+            userId,
+          },
+        },
+        create: {
           organizationId: invitation.organizationId,
           userId,
+          role: invitation.role,
         },
-      },
-      create: {
-        organizationId: invitation.organizationId,
+        update: {},
+      });
+      const consumed = await tx.invitation.updateMany({
+        where: {
+          id: invitation.id,
+          acceptedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { acceptedAt: new Date() },
+      });
+      if (consumed.count !== 1) throw new AccessError();
+      await audit(
+        tx,
+        invitation.organizationId,
         userId,
-        role: invitation.role,
-      },
-      update: {},
-    });
-    await audit(
-      tx,
-      invitation.organizationId,
-      userId,
-      "invitation.accepted",
-      invitation.id,
-    );
-    return invitation.organizationId;
-  });
+        "invitation.accepted",
+        invitation.id,
+      );
+      return invitation.organizationId;
+    },
+    "",
+    hash(token),
+  );
 }
 export async function changeMember(
   userId: string,
@@ -164,9 +177,6 @@ export async function changeMember(
       })) <= 1
     )
       throw new Error("The organization must retain an owner.");
-    if (role === null) await tx.membership.delete({ where: { id: target.id } });
-    else
-      await tx.membership.update({ where: { id: target.id }, data: { role } });
     await audit(
       tx,
       organizationId,
@@ -174,6 +184,9 @@ export async function changeMember(
       role === null ? "member.removed" : "member.role_changed",
       targetUserId,
     );
+    if (role === null) await tx.membership.delete({ where: { id: target.id } });
+    else
+      await tx.membership.update({ where: { id: target.id }, data: { role } });
   });
 }
 export async function revokeInvitation(

@@ -1,5 +1,7 @@
 # Foundation validation evidence
 
+Historical foundation evidence follows. The later isolation audit and current results are in [TENANT_ISOLATION.md](TENANT_ISOLATION.md) and [TENANT_ISOLATION_VALIDATION.md](TENANT_ISOLATION_VALIDATION.md).
+
 Validated locally on 20 October 2026 (Asia/Kolkata client date). The repository began at `6153dad3ff667292a1a8fe81d6d28faa0c4c5023` with only README.md. Issue #1's scope and 26 November 2026 delivery deadline were supplied by the user after direct GitHub API access was blocked.
 
 ## Executed checks

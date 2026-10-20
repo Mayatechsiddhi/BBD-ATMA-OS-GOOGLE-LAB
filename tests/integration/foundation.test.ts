@@ -1,6 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, it, expect } from "vitest";
-import { db } from "../../src/lib/db";
+import { adminDb as db } from "../../scripts/local-admin-db";
+import { db as runtimeDb } from "../../src/lib/db";
 import { auth } from "../../src/lib/auth";
 import * as service from "../../src/modules/organizations/service";
 import * as crm from "../../src/modules/crm/service";
@@ -106,6 +107,7 @@ afterAll(async () => {
   await db.organization.deleteMany({ where: { id: { in: orgIds } } });
   await db.user.deleteMany({ where: { id: { in: userIds } } });
   await db.$disconnect();
+  await runtimeDb.$disconnect();
 });
 describe("real authentication and persisted tenant access", () => {
   it("persists password hashes and verifies database-backed sessions", async () => {
@@ -379,6 +381,7 @@ describe("real authentication and persisted tenant access", () => {
     });
     const invitation = await db.invitation.findFirstOrThrow({
       where: {
+        tokenHash: createHash("sha256").update(token).digest("hex"),
         organizationId,
         email: (await db.user.findUniqueOrThrow({ where: { id: other } }))
           .email,

@@ -1,6 +1,6 @@
 import { z } from "zod";
 const schema = z.object({
-  DATABASE_URL: z
+  RUNTIME_DATABASE_URL: z
     .url()
     .refine(
       (v) => v.startsWith("postgresql://") || v.startsWith("postgres://"),

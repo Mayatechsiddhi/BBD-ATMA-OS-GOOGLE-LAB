@@ -26,7 +26,7 @@ Before public onboarding: configure verified sending domain and production SMTP;
 
 ## Milestone 2 — tenant data defenses and operational readiness
 
-- Separate migration and least-privilege runtime roles; introduce PostgreSQL RLS and tests for a non-bypass runtime role.
+- [x] Implement separate runtime/migration connections, FORCE RLS and tests under a non-bypass runtime role; verify fresh migrations under a non-superuser owner. Independent review and staging/pooler validation remain required.
 - Add composite tenant foreign keys to the first business models, schema-level invariants, and isolation checks for nested operations.
 - Backup/restore drills, PITR, migration rollback planning and staged release procedures.
 - Nonce-based CSP, HTTPS ingress/HSTS, secrets rotation, dependency update automation, account lifecycle and audit retention/export policies.
@@ -44,3 +44,7 @@ Provider abstraction, tenant policy, retrieval boundaries, cost limits, evaluati
 ## Continuity rules
 
 Replace checkboxes only with verifiable evidence. Update `docs/VALIDATION.md` for each milestone. Separate implemented, planned, blocked and production-unapproved capabilities. Do not turn outstanding operations into placeholder success UI.
+
+## Tenant-isolation assignment
+
+Implementation and local verification are complete on `security/tenant-rls-hardening`; see `docs/TENANT_ISOLATION_VALIDATION.md`. Independent security review is pending. After that review accepts the boundary, recommend a scoped CRM opportunities/pipeline issue with tenant-aware parent keys and the same negative tests. No further CRM feature work is included in this security branch.

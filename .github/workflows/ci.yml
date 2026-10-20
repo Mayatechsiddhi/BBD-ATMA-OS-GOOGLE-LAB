@@ -23,15 +23,18 @@ jobs:
       - run: npm rebuild esbuild
       - run: node scripts/init-dev.mjs
       - run: docker compose -p bbd-atma-dev up -d --wait
+      - run: npm run db:runtime:local
       - run: npm run db:generate:wasm
       - run: npm run db:migrate:wasm
       - run: npm run db:migrate:wasm
+      - run: npm run db:runtime:local
       - run: npm run db:test:prepare
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:integration
+      - run: npm run test:migrations
       - run: npm run build
       - name: Test actual Next.js requests and Server Actions
         shell: bash

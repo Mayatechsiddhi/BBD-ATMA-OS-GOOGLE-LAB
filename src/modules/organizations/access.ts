@@ -1,5 +1,5 @@
 import { Prisma, type Role } from "@/generated/prisma/client";
-import { db } from "@/lib/db";
+import { withActor } from "@/lib/tenant-context";
 import { authorize, type Permission } from "./policy";
 // All tenant operations authorize inside the same transaction as their reads/writes.
 // Serialize organization mutations, including last-owner checks, across application instances.
@@ -9,14 +9,18 @@ export async function withOrganization<T>(
   permission: Permission,
   run: (tx: Prisma.TransactionClient, role: Role) => Promise<T>,
 ) {
-  return db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${organizationId}, 0))`;
-    const member = await tx.membership.findUnique({
-      where: { organizationId_userId: { organizationId, userId } },
-    });
-    authorize(member?.role, permission);
-    return run(tx, member!.role);
-  });
+  return withActor(
+    userId,
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${organizationId}, 0))`;
+      const member = await tx.membership.findUnique({
+        where: { organizationId_userId: { organizationId, userId } },
+      });
+      authorize(member?.role, permission);
+      return run(tx, member!.role);
+    },
+    organizationId,
+  );
 }
 export async function audit(
   tx: Prisma.TransactionClient,

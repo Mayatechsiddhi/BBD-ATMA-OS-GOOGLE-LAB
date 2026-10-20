@@ -13,8 +13,10 @@ npm ci --ignore-scripts
 npm rebuild esbuild
 node scripts/init-dev.mjs
 docker compose -p bbd-atma-dev up -d --wait
+npm run db:runtime:local
 npm run db:generate
 npm run db:migrate
+npm run db:runtime:local
 npm run dev
 ```
 
@@ -27,7 +29,7 @@ npm run db:generate:wasm
 npm run db:migrate:wasm
 ```
 
-These commands preserve Prisma migration history/checksums and are tested for repeatability. They use pinned internal APIs and must be revalidated when upgrading Prisma. Never disable checksum or TLS verification. The remaining Next.js native packages arrive through npm's integrity-verified platform packages. Cloud machines with an unwritable home cache can export `npm_config_cache=/workspace/.npm-cache` first.
+Run `db:runtime:local` again after migration to grant the local runtime role its explicit privileges. `db:test:prepare` migrates and grants privileges on the separate test database. These commands preserve Prisma migration history/checksums and are tested for repeatability. They use pinned internal APIs and must be revalidated when upgrading Prisma. Never disable checksum or TLS verification. The remaining Next.js native packages arrive through npm's integrity-verified platform packages. Cloud machines with an unwritable home cache can export `npm_config_cache=/workspace/.npm-cache` first.
 
 Open the application on your local machine, create an account, and verify the delivered email in the local Mailpit inbox on port 8025. Sign in, create an organization, then manage settings and people. Open Client relationships to capture a lead, qualify it and convert it to a customer; transitions persist with audit records. Invitations are private links delivered manually to the intended recipient; the recipient must create and verify the exact invited email and paste the link again after signing in. Invitation fragments are cleared after filling the token form. No real external email is sent by Mailpit.
 
@@ -39,12 +41,17 @@ npm run typecheck
 npm test
 npm run db:test:prepare
 npm run test:integration
+npm run test:migrations
 npm run build
 # With npm run dev running separately:
 npm run test:http
 ```
 
 `db:test:prepare` creates a separate local `_test` database if absent, then applies migrations. It never drops or resets a database. Integration tests require TEST_DATABASE_URL and Mailpit; they delete only generated fixture identities/organizations. HTTP smoke tests use local development and remove only their own fixtures. Neither suite is permitted against production hosts. Build output is checked separately from runtime HTTP functionality.
+
+## Database isolation
+
+The app uses `RUNTIME_DATABASE_URL`; `DATABASE_URL` is reserved for migrations and local fixture cleanup. Never use migration credentials as an app fallback. Local role provisioning is loopback-only, preserves existing passwords, and grants no owner, bypass, schema-creation or migration privileges. Tenant data is protected by FORCE RLS in addition to service authorization. See [the isolation audit](docs/TENANT_ISOLATION.md) for role setup, pooling, exceptional bootstrap paths, tests and limitations.
 
 ## Production configuration
 

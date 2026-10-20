@@ -13,7 +13,7 @@ A Next.js App Router application using React, TypeScript, PostgreSQL, Prisma's P
 5. Organization queries include tenant predicates. Nonmembers receive a generic 404 at page boundaries. A browser-supplied organization identifier grants no authority.
 6. Mutations and audit events commit atomically. Role changes and sign-outs take effect on the next session/membership read; there is no cookie session cache.
 
-The service's actorId parameter is trusted server context, not an API input. Importing the raw Prisma client in new tenant-facing routes bypasses this boundary and is prohibited. PostgreSQL RLS is not yet implemented; a database credential compromise bypasses service isolation. Separate migration and least-privilege runtime roles and add RLS as defense in depth before expanding to sensitive business records.
+The service's actorId parameter is trusted server context, not an API input. Importing the raw Prisma client in new tenant-facing routes bypasses this boundary and is prohibited. PostgreSQL FORCE RLS now protects Organization, Membership, Invitation, AuditEvent and Contact under a separate unprivileged runtime role. `withActor` installs transaction-local actor/organization/invitation context and the current PostgreSQL transaction ID. RLS checks current membership and fails closed without that context. Runtime startup/health/transactions reject owner, elevated or incompletely migrated connections. The migration owner is explicitly privileged; narrow SECURITY DEFINER membership lookup/bootstrap functions run as that owner with fixed search paths and explicit grants. See `docs/TENANT_ISOLATION.md` for the threat model: arbitrary SQL execution with runtime credentials can forge the trusted actor context, so RLS is not authentication and does not contain a fully compromised application.
 
 ## Data model
 
@@ -22,7 +22,7 @@ The service's actorId parameter is trusted server context, not an API input. Imp
 - Membership: unique (organizationId, userId), OWNER / ADMIN / MEMBER.
 - Invitation: tenant, normalized email, ADMIN / MEMBER role, SHA-256 token hash, 48-hour expiry, single-use acceptance. Acceptance requires a verified matching email and cannot change an existing member's role.
 - Contact: tenant-owned, unique normalized email per organization, composite (organizationId, id) key, LEAD → QUALIFIED → CUSTOMER; archive from any live state. Owners/administrators write; members read. Invalid state skips, duplicate transitions and foreign contact IDs are rejected.
-- AuditEvent: immutable through application services; tenant ID, actor ID, action, optional subject and timestamp. The runtime database role currently remains capable of modification; tamper-resistant archival is a later production control.
+- AuditEvent: immutable through application services; tenant ID, actor ID, action, optional subject and timestamp. The runtime role has SELECT/INSERT only, and INSERT requires the current actor and tenant. Migration credentials remain privileged; tamper-resistant archival is a later production control.
 
 Organization creation and its initial OWNER membership are one transaction. All role and removal operations preserve an owner under concurrent requests. Global account deletion is intentionally not exposed.
 

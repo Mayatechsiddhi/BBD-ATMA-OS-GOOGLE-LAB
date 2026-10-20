@@ -1,8 +1,8 @@
-import { db } from "@/lib/db";
+import { assertRuntimeDatabase } from "@/lib/tenant-context";
 import { logger } from "@/lib/logger";
 export async function GET() {
   try {
-    await db.$queryRaw`SELECT 1`;
+    await assertRuntimeDatabase();
     return Response.json(
       { status: "ok" },
       { headers: { "Cache-Control": "no-store" } },

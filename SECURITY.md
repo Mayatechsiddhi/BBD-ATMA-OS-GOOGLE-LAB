@@ -5,6 +5,7 @@ Report suspected vulnerabilities privately to repository owners. Do not disclose
 ## Implemented
 
 - Better Auth password hashing, mandatory verified email, signed HttpOnly sessions, secure cookies in production, explicit CSRF and origin checks, database auth rate limits, seven-day session lifetime and reset-time session revocation.
+- PostgreSQL FORCE RLS, a non-owner runtime role, transaction-local actor/tenant context bound to the current transaction ID, fail-closed runtime checks and append-only runtime audit grants protect against omitted ORM predicates and pool reuse. The migration owner and global authentication subsystem remain trusted. See docs/TENANT_ISOLATION.md.
 - Every tenant read/write checks current membership; owners alone manage roles/removal. Concurrent last-owner changes serialize using PostgreSQL transaction advisory locks.
 - Invitation tokens use 256 random bits, SHA-256 storage, expiry, email matching and atomic single-use consumption. Private invite links use URL fragments so tokens do not enter server request logs. Auth recovery/verification paths are excluded from development request logging.
 - Zod validation, ORM parameterization, no submitted data or secrets in application logs, generic client-facing failures, authenticated member directory, and atomic audit writes.
@@ -17,7 +18,7 @@ This milestone is production-oriented application code, not a declaration of ope
 1. Configure HTTPS and trusted reverse proxy header sanitation. Do not expose an ingress that lets callers forge the client IP used by auth rate limits. Implement distributed action/mail abuse controls.
 2. Set strong unique secrets, PostgreSQL TLS, least-privilege runtime credentials, production SMTP with TLS/authentication and verified sending domain. Mailpit is local only.
 3. Decide signup policy and add MFA, session inventory/revocation, account lifecycle, verified-email resend and recovery abuse tests.
-4. Add RLS defense in depth, backup/restore verification, retention policies and tamper-resistant audit export.
+4. Review and provision the separate runtime/migration roles and RLS in staging before any release; verify the actual deployment pooler, backup/restore, retention and tamper-resistant audit export. RLS does not make forged server actor context or global auth credentials safe after arbitrary application SQL execution.
 5. Replace the current inline-compatible CSP with tested nonces, and add ingress HSTS after HTTPS validation.
 6. Run real browser, accessibility, multi-instance rate-limit and dependency security checks before launch. Bound invitation/action volumes and add a durable mail outbox before scale.
 

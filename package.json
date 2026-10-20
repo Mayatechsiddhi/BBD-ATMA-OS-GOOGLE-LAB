@@ -25,7 +25,9 @@
     "predev": "tsx --env-file-if-exists=.env scripts/check-env.ts development",
     "prestart": "tsx --env-file-if-exists=.env scripts/check-env.ts production",
     "format:check": "prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "db:runtime:local": "node scripts/configure-local-runtime.mjs",
+    "test:migrations": "node scripts/verify-rls-migrations.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",
@@ -42,8 +44,8 @@
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "tailwind-merge": "3.7.0",
-    "zod": "4.6.7",
-    "tsx": "4.23.15"
+    "tsx": "4.23.15",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@prisma/client-generator-ts": "7.10.1",

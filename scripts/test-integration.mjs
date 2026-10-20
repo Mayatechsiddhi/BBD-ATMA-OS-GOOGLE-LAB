@@ -10,12 +10,28 @@ if (
   throw new Error(
     "TEST_DATABASE_URL must name a dedicated database ending in _test. Apply migrations there first.",
   );
+if (!process.env.TEST_RUNTIME_DATABASE_URL)
+  throw new Error("TEST_RUNTIME_DATABASE_URL is required");
+const runtime = new URL(process.env.TEST_RUNTIME_DATABASE_URL);
+if (
+  runtime.hostname !== new URL(url).hostname ||
+  runtime.port !== new URL(url).port ||
+  runtime.pathname !== new URL(url).pathname
+)
+  throw new Error(
+    "Runtime and fixture URLs must target the same local test database",
+  );
 const result = spawnSync(
   "npx",
   ["vitest", "run", "--config", "vitest.integration.config.ts"],
   {
     stdio: "inherit",
-    env: { ...process.env, DATABASE_URL: url, NODE_ENV: "test" },
+    env: {
+      ...process.env,
+      DATABASE_URL: url,
+      RUNTIME_DATABASE_URL: runtime.toString(),
+      NODE_ENV: "test",
+    },
   },
 );
 process.exit(result.status ?? 1);

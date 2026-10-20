@@ -48,3 +48,5 @@ Replace checkboxes only with verifiable evidence. Update `docs/VALIDATION.md` fo
 ## Tenant-isolation assignment
 
 Implementation and local verification are complete on `security/tenant-rls-hardening`; see `docs/TENANT_ISOLATION_VALIDATION.md`. Independent security review is pending. After that review accepts the boundary, recommend a scoped CRM opportunities/pipeline issue with tenant-aware parent keys and the same negative tests. No further CRM feature work is included in this security branch.
+
+Security branch publication succeeded. PR creation against the foundation branch remains blocked: both GitHub GraphQL and REST returned Forbidden. Prepared PR text and the exact publishing outcome are in `docs/TENANT_ISOLATION_PR.md` and `docs/TENANT_ISOLATION_VALIDATION.md`.

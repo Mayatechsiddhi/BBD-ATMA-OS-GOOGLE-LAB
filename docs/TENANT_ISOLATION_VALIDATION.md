@@ -50,3 +50,9 @@ A hand-crafted no-JavaScript useActionState invitation-creation POST also stalle
 No production access, deployment, infrastructure purchase, automatic merge, external SMTP delivery or external pooler setup occurred. Human review of definer functions, owner-policy exceptions, runtime grants and rollout sequencing is required. RLS trusts server-supplied actor context and does not contain arbitrary SQL execution or stolen runtime/migration credentials. Identity records are intentionally global. Last-owner/workflow business invariants remain service rules. See TENANT_ISOLATION.md and SECURITY.md for the complete boundary and release gates.
 
 CI was extended with runtime-role provisioning and non-superuser migration validation; local execution is verified. Remote CI status is not claimed because the GitHub API is blocked. PR publishing outcomes are recorded after the push attempt.
+
+## Publishing outcome
+
+The hardening implementation was committed as `ba852fed20a00996f6d786faf9d6195874d4fe73` and pushed to `origin/security/tenant-rls-hardening`; remote Git readback matched. Both `gh pr create` (GraphQL) and the REST pulls endpoint returned Forbidden. No PR number was returned and no created PR is claimed. This is a GitHub API access blocker, not a failed code/test check.
+
+Review the pushed branch against `feat/issue-1-production-foundation` and use `docs/TENANT_ISOLATION_PR.md` as the PR body. Manual comparison/creation link: https://github.com/bloomdigital369-hue/BBD-MASTER-ATMA-OS/compare/feat/issue-1-production-foundation...security/tenant-rls-hardening?expand=1 . API creation can be retried after api.github.com access is restored. No new token is requested; native Git push already works. No automatic merge or deployment occurred.

@@ -5,14 +5,17 @@ import Link from "next/link";
 import { createAuthClient } from "better-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useHydrated } from "@/lib/use-hydrated";
 const client = createAuthClient();
 export function AuthForm({ signup = false }: { signup?: boolean }) {
   const router = useRouter();
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const hydrated = useHydrated();
   return (
     <form
+      method="post"
       className="space-y-5"
       onSubmit={async (event) => {
         event.preventDefault();
@@ -100,7 +103,7 @@ export function AuthForm({ signup = false }: { signup?: boolean }) {
           {error}
         </p>
       )}
-      <Button className="w-full" disabled={busy}>
+      <Button className="w-full" disabled={busy || !hydrated}>
         {busy ? "Please wait…" : signup ? "Create account" : "Sign in"}
       </Button>
       <Link

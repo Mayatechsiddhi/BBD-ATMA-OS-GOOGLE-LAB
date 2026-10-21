@@ -35,6 +35,7 @@ jobs:
       - run: npm test
       - run: npm run test:integration
       - run: npm run test:migrations
+      - run: npm run test:pooler
       - run: npm run build
       - name: Test actual Next.js requests and Server Actions
         shell: bash
@@ -44,5 +45,6 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           curl --retry 30 --retry-connrefused --retry-delay 1 --fail --silent http://localhost:3000/api/health
           npm run test:http
+          BROWSER_SERVER_LOG=/tmp/bbd-next.log CHROMIUM_PATH="$(command -v chromium || command -v google-chrome)" npm run test:browser
       - name: Check production dependency advisories
         run: npm audit --omit=dev --audit-level=high

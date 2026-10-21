@@ -1,14 +1,17 @@
 "use client";
 import { createAuthClient } from "better-auth/react";
 import { useState } from "react";
+import { useHydrated } from "@/lib/use-hydrated";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 const client = createAuthClient();
 export function PasswordForm({ token }: { token?: string }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const hydrated = useHydrated();
   return (
     <form
+      method="post"
       className="space-y-4"
       onSubmit={async (e) => {
         e.preventDefault();
@@ -64,7 +67,7 @@ export function PasswordForm({ token }: { token?: string }) {
           {message}
         </p>
       )}
-      <Button disabled={busy}>
+      <Button disabled={busy || !hydrated}>
         {busy ? "Please wait…" : token ? "Reset password" : "Send reset link"}
       </Button>
     </form>

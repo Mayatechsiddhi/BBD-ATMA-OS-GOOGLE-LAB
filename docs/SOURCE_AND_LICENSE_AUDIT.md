@@ -1,5 +1,11 @@
 # Source and third-party licensing audit
 
+## PR #3 review follow-up — 21 October 2026 (IST)
+
+Added only `playwright-core` 1.64.1 as an exact development dependency for real browser regression tests. npm metadata, Node >=20 compatibility, absence of install hooks, Apache-2.0 declaration and installed LICENSE were reviewed before execution. npm lock integrity is retained; the inventory now contains 819 packages. No browser binary is bundled into the application. Tests use the existing Chromium installation; CI may use its preinstalled Chrome via CHROMIUM_PATH. Browser distribution terms are separate from Playwright's license.
+
+The local pooler runner uses `edoburu/pgbouncer` at amd64 manifest digest `sha256:a26a00a576e248e73230eff35c8fbe77279bf0d8b6550d3007c56ee69287c664`. Runtime reports PgBouncer 1.26.1, libevent 2.1.13 and OpenSSL 3.5.8. Reviewed upstream Dockerfile and MIT container-wrapper LICENSE at edoburu/docker-pgbouncer (HEAD readback `f0b69975fffce835643f3b3a5b7cec5ed2c3adea`), plus PgBouncer's upstream ISC COPYRIGHT. The runner overrides the image entrypoint with explicit local test configuration. Digest verification identifies the tested artifact; it does not attest a reproducible source build or establish a clean OS vulnerability scan. This test image is not a production deployment selection.
+
 ## Baseline and provenance
 
 The inspected main/initial commit `6153dad3ff667292a1a8fe81d6d28faa0c4c5023` contained only a 212-byte README describing BBD Master ATMA OS. There was no application code, dependency manifest, test suite, agent file or repository LICENSE. The working tree was clean before foundation implementation. No previous test repository, business dataset, customer credential or production system was imported.

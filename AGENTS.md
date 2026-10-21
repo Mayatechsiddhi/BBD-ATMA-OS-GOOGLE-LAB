@@ -30,6 +30,8 @@ This checkout is the commercial BBD Master ATMA OS product. Read `ARCHITECTURE.m
 
 See README for setup. Required: `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:integration`, `npm run build`, `npm run test:migrations`, and `npm run test:http` against a running local development server. Integration tests require a separate migrated database ending `_test` and local Mailpit. Tests remove only their own fixtures; never reset an existing database.
 
+PR #3 adds `npm run test:pooler` (Docker, pinned local PgBouncer, loopback port 6432) and `npm run test:browser` (preinstalled Chromium, override CHROMIUM_PATH if necessary). Browser tests exercise real invitation transport; do not replace them with service-only fixture creation. Keep the useActionState action reference stable and authorize the submitted organizationId as an untrusted selector. Leave Next development Server Function argument tracing disabled: previous action state can contain private invitation tokens.
+
 On cloud machines with an unwritable home cache, export `npm_config_cache=/workspace/.npm-cache`. Default Prisma CLI commands require `binaries.prisma.sh`; the pinned `db:generate:wasm` and `db:migrate:wasm` development fallback is documented and tested. Do not disable TLS, checksum, signature, CSRF or authorization checks to make tests pass.
 
 Update ROADMAP and validation evidence when behavior changes. Report actual failures and skipped checks. A passing build does not establish production readiness.

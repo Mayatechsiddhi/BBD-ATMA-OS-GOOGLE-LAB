@@ -1,5 +1,7 @@
 # Tenant-isolation validation — 20 October 2026
 
+Historical baseline. See [PR #3 review follow-up](PR3_REVIEW_FOLLOWUP.md) for the subsequent browser, authenticated migration-login and PgBouncer evidence.
+
 Base: `feat/issue-1-production-foundation` at `e8850236bf4dd801f4706ba5b4a6727c5353d143`.
 Review branch: `security/tenant-rls-hardening`.
 

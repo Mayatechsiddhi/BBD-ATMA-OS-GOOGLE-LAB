@@ -9,7 +9,8 @@ Report suspected vulnerabilities privately to repository owners. Do not disclose
 - Every tenant read/write checks current membership; owners alone manage roles/removal. Concurrent last-owner changes serialize using PostgreSQL transaction advisory locks.
 - Invitation tokens use 256 random bits, SHA-256 storage, expiry, email matching and atomic single-use consumption. Private invite links use URL fragments so tokens do not enter server request logs. Auth recovery/verification paths are excluded from development request logging.
 - Zod validation, ORM parameterization, no submitted data or secrets in application logs, generic client-facing failures, authenticated member directory, and atomic audit writes.
-- Next.js action CSRF/body-size defenses and browser headers (nosniff, DENY framing, no-referrer, restrictive permissions and baseline CSP).
+- Next.js action CSRF/body-size defenses and browser headers (nosniff, DENY framing, same-origin referrer policy, restrictive permissions and baseline CSP). Native same-origin POSTs retain Origin for CSRF validation; cross-origin navigation sends no referrer.
+- Client-only authentication/recovery forms explicitly use POST and disable submission until hydration, preventing native GET credential leakage before event handlers are ready. Next development argument traces and browser-to-terminal forwarding are disabled; the browser regression checks local server logs for fixture secrets.
 
 ## Production gates
 

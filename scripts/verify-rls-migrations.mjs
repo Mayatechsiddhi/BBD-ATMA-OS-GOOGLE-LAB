@@ -1,5 +1,6 @@
 /** No reset/drop: apply twice on a dedicated local DB owned by a non-superuser. */
 import fs from "node:fs";
+import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import pg from "pg";
 if (fs.existsSync(".env")) process.loadEnvFile(".env");
@@ -12,17 +13,28 @@ if (!["localhost", "127.0.0.1"].includes(url.hostname))
 url.pathname = "/postgres";
 const admin = new pg.Client({ connectionString: url.toString() });
 await admin.connect();
-const name = "bbd_rls_migration_test",
-  owner = "bbd_migration_test_owner";
+// Separate login and database: preserve the older SET ROLE verification database.
+const name = "bbd_login_rls_migration_test",
+  owner = "bbd_login_migration_test_owner";
+const credentialFile = ".env.migration-test";
+if (!fs.existsSync(credentialFile))
+  fs.writeFileSync(
+    credentialFile,
+    JSON.stringify({ password: randomBytes(32).toString("hex") }),
+    { mode: 0o600, flag: "wx" },
+  );
+const { password } = JSON.parse(fs.readFileSync(credentialFile, "utf8"));
+if (typeof password !== "string" || !/^[a-f0-9]{64}$/.test(password))
+  throw new Error("Invalid ignored local migration-test credential file");
 let created = false;
 try {
   const roles = await admin.query(
-    "SELECT rolsuper,rolbypassrls,rolcreaterole,rolcreatedb FROM pg_roles WHERE rolname=$1",
+    "SELECT rolsuper,rolbypassrls,rolcreaterole,rolcreatedb,NOT rolcanlogin AS no_login,EXISTS(SELECT 1 FROM pg_auth_members WHERE member=pg_roles.oid) AS memberships FROM pg_roles WHERE rolname=$1",
     [owner],
   );
   if (!roles.rowCount)
     await admin.query(
-      "CREATE ROLE bbd_migration_test_owner NOLOGIN NOINHERIT NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE",
+      `CREATE ROLE bbd_login_migration_test_owner LOGIN NOINHERIT NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD ${pg.escapeLiteral(password)}`,
     );
   else if (Object.values(roles.rows[0]).some(Boolean))
     throw new Error("Existing migration test role unsafe; left unchanged");
@@ -32,7 +44,7 @@ try {
   );
   if (!existing.rowCount) {
     await admin.query(
-      "CREATE DATABASE bbd_rls_migration_test OWNER bbd_migration_test_owner",
+      "CREATE DATABASE bbd_login_rls_migration_test OWNER bbd_login_migration_test_owner",
     );
     created = true;
   } else if (existing.rows[0].owner !== owner)
@@ -44,7 +56,9 @@ try {
 }
 const migration = new URL(source);
 migration.pathname = "/" + name;
-migration.searchParams.set("options", "-c role=" + owner);
+migration.username = owner;
+migration.password = password;
+migration.searchParams.delete("options");
 const runtime = new URL(process.env.RUNTIME_DATABASE_URL);
 runtime.pathname = "/" + name;
 runtime.searchParams.delete("options");
@@ -61,13 +75,20 @@ try {
   const {
     rows: [actual],
   } = await probe.query(
-    "SELECT current_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user",
+    "SELECT current_user,session_user,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=current_user",
   );
-  if (actual.current_user !== owner || actual.rolsuper || actual.rolbypassrls)
+  if (
+    actual.current_user !== owner ||
+    actual.session_user !== owner ||
+    actual.rolsuper ||
+    actual.rolbypassrls
+  )
     throw new Error(
-      "Migration verification did not assume the unprivileged effective owner role",
+      "Migration verification did not authenticate as the restricted migration login",
     );
-  console.log("Verified non-superuser/non-bypass effective migration owner.");
+  console.log(
+    "Verified independently authenticated non-superuser/non-bypass migration login (current_user = session_user).",
+  );
 } finally {
   await probe.end();
 }

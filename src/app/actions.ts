@@ -70,12 +70,12 @@ export async function updateOrganization(id: string, data: FormData) {
   });
 }
 export async function inviteMember(
-  id: string,
   _previous: { token?: string; error?: string },
   data: FormData,
 ): Promise<{ token?: string; error?: string }> {
   const { user } = await requireSession();
   try {
+    const id = value(data, "organizationId");
     const token = await service.createInvitation(user.id, id, {
       email: value(data, "email"),
       role: value(data, "role"),

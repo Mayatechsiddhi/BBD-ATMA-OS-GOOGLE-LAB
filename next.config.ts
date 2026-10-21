@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   poweredByHeader: false,
   logging: {
+    // Next's default development traces include useActionState's previous token.
+    serverFunctions: false,
+    browserToTerminal: false,
     incomingRequests: {
       ignore: [
         /\/api\/auth\/(verify-email|reset-password)/,
@@ -16,7 +19,9 @@ const config: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Referrer-Policy", value: "no-referrer" },
+          // Native same-origin form POSTs need a non-null Origin for Next's CSRF check.
+          // Cross-origin navigation still sends no referrer (including private paths).
+          { key: "Referrer-Policy", value: "same-origin" },
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",

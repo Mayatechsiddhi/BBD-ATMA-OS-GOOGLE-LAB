@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { adminDb as db } from "./local-admin-db";
-import { db as runtimeDb } from "../src/lib/db";
-import { createInvitation } from "../src/modules/organizations/service";
 const base = process.env.BETTER_AUTH_URL!;
 if (!["localhost", "127.0.0.1"].includes(new URL(base).hostname))
   throw new Error("HTTP smoke tests are restricted to local development.");
@@ -53,7 +51,7 @@ function actionForm(html: string, field: string) {
   for (const match of form.matchAll(/<input\b[^>]*>/g)) {
     const name = match[0].match(/name="([^"]+)"/)?.[1];
     const value = match[0].match(/value="([^"]*)"/)?.[1];
-    if (name?.startsWith("$ACTION_"))
+    if (name?.startsWith("$ACTION_") || name === "organizationId")
       data.append(decode(name), decode(value ?? ""));
   }
   assert.ok([...data.keys()].length, "Expected Next.js action metadata");
@@ -107,6 +105,7 @@ try {
   const html = await organizations.text();
   assert.ok(html.includes("Your organizations"));
   assert.equal(organizations.headers.get("x-frame-options"), "DENY");
+  assert.equal(organizations.headers.get("referrer-policy"), "same-origin");
   assert.ok(
     organizations.headers
       .get("content-security-policy")
@@ -188,10 +187,7 @@ try {
 
   const cookieA = cookie;
   cookie = "";
-  const bUser = await registerAccount(
-    `http-b-${id}@example.com`,
-    "HTTP tenant B owner",
-  );
+  await registerAccount(`http-b-${id}@example.com`, "HTTP tenant B owner");
   const cookieB = cookie;
   const bCreate = actionForm(
     await (await request("/organizations")).text(),
@@ -226,16 +222,29 @@ try {
     await (await request(bLocation + "/crm")).text(),
     "status",
   );
-  // Invitation issuance is fixture setup through the real authorized domain service.
-  // React useActionState's JS/browser transport is not emulated by this HTTP runner.
-  await createInvitation(bUser, bOrg, {
-    email: `recipient-b-${id}@example.com`,
-    role: "MEMBER",
+  const bInvite = actionForm(
+    await (await request(bLocation + "/members")).text(),
+    "email",
+  );
+  bInvite.set("email", `recipient-b-${id}@example.com`);
+  bInvite.set("role", "MEMBER");
+  const issued = await request(bLocation + "/members", {
+    method: "POST",
+    body: bInvite,
   });
+  assert.equal(issued.status, 200);
+  assert.ok((await issued.text()).includes("Private invitation link"));
   const bMembers = await (await request(bLocation + "/members")).text();
   const bRemove = actionForm(bMembers, "text:>Remove</button>");
   const bRevoke = actionForm(bMembers, "text:>Revoke</button>");
   cookie = cookieA;
+  const deniedInvite = await request(bLocation + "/members", {
+    method: "POST",
+    body: bInvite,
+  });
+  // A native POST re-renders B's page after the denied action, so the page boundary returns 404.
+  assert.equal(deniedInvite.status, 404);
+  assert.ok(!(await deniedInvite.text()).includes(`Private B ${id}`));
   for (const suffix of ["", "/settings", "/members", "/crm", "/modules"]) {
     const foreign = await request(bLocation + suffix);
     assert.equal(foreign.status, 404);
@@ -323,5 +332,4 @@ try {
   await db.organization.deleteMany({ where: { id: { in: orgIds } } });
   await db.user.deleteMany({ where: { id: { in: userIds } } });
   await db.$disconnect();
-  await runtimeDb.$disconnect();
 }

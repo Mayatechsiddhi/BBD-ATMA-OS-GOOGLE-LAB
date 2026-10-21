@@ -45,7 +45,7 @@ Every Server Action still derives the actor from requireSession(). Resource IDs 
 
 Policies derive the actor only if the transaction-ID stamp matches the current transaction. Missing context denies tenant data. A stale session-level actor/tenant/stamp from a reused connection also fails closed in the next transaction. Queries have additional membership/role checks, so simply changing the selected organization to a foreign tenant does not grant access. A user belonging to both tenants is still limited to the selected context.
 
-Validated: actual node-postgres pooling with a single reused backend, rollback cleanup, stale session settings and concurrent Prisma transactions. External PgBouncer/provider pooling was not deployed or tested. Transaction pooling is the intended protocol boundary; statement pooling is incompatible with interactive transactions. Validate the actual pooler and transaction timeouts in staging before release.
+Validated: node-postgres pooling and local PgBouncer 1.26.1 transaction pooling, with one reused server backend, rollback cleanup, stale session settings and concurrent Prisma transactions. All 34 integration cases run through the pooler, including application services under restricted credentials. This is not evidence for a managed provider configuration. Statement pooling is incompatible with interactive transactions. Validate the selected deployment pooler, TLS and transaction timeouts in staging before release.
 
 ## Privileged functions and remaining trust
 
@@ -72,12 +72,14 @@ npm run typecheck
 npm test
 npm run test:integration
 npm run test:migrations
+npm run test:pooler
 npm run build
 # In a separate process: npm run dev
 npm run test:http
+npm run test:browser
 ```
 
-DATABASE_URL is the local migration/fixture credential. RUNTIME_DATABASE_URL is the application credential. TEST_DATABASE_URL and TEST_RUNTIME_DATABASE_URL point to the same local dedicated `_test` database using separate roles. Provisioning generates a runtime password only when absent, never prints it, preserves an existing password and refuses unsafe existing roles. Test cleanup removes only its own fixtures. The migration check creates/reuses a dedicated local database and NOLOGIN non-superuser owner. Its local administrative connection assumes that effective role using startup options; the runner explicitly verifies current_user and NOSUPERUSER/NOBYPASSRLS, plus table and definer-function ownership. This is not a claim of testing a separate production migration login. It it never drops/resets databases or volumes.
+DATABASE_URL is the local migration/fixture credential. RUNTIME_DATABASE_URL is the application credential. TEST_DATABASE_URL and TEST_RUNTIME_DATABASE_URL point to the same local dedicated `_test` database using separate roles. Provisioning generates a runtime password only when absent, never prints it, preserves an existing password and refuses unsafe existing roles. Test cleanup removes only its own fixtures. The migration check creates/reuses a new dedicated local database and separately authenticated LOGIN non-superuser owner. It verifies current_user = session_user, NOSUPERUSER/NOBYPASSRLS, and table/definer-function ownership. Its generated password is kept only in ignored mode-0600 .env.migration-test; existing passwords and the older NOLOGIN test database are preserved. This is local login evidence, not production-provider provisioning. It never drops/resets databases or volumes.
 
 The original two migrations are unchanged. New migrations are additive, wrapped in transactions and tracked by normal Prisma migration checksums. The local failed initial development attempt was resolved through Prisma's supported migration API, not manual history edits. CI checks both upgrade/repeat migration behavior and a full fresh chain under a non-superuser owner.
 
@@ -101,7 +103,7 @@ The local helper is the executable grant reference; it deliberately refuses remo
 ## Limits and follow-up
 
 - Security-critical SQL, definer functions and provider-specific role setup require independent human review before merge/deployment.
-- Browser JavaScript invitation submission and accessibility remain unverified. A hand-crafted no-JavaScript useActionState form POST stalled and was aborted at 20 seconds; the runner does not emulate React's browser transport. Invitation issuance/acceptance is verified at service/auth/database level. The HTTP isolation test sets up B's invitation through the actual authorized service and tests its rendered revoke action with A's real cookie. Reproduce the browser behavior before drawing a product UI conclusion.
+- PR #3 browser and HTTP follow-up results, including the reproduced invitation POST failures and corrections, are recorded in PR3_REVIEW_FOLLOWUP.md. Accessibility and other browser engines remain separate checks. HTTP invitation fixture creation now uses the actual form POST, not the domain service.
 - No HTTP search/export implementation exists; adversarial SQL search/count/export-shaped aggregation is tested without tenant filters. This is not a claim that an unimplemented export API is secure.
 - Production dependency audit is separate from full development advisories. Existing braces advisory paths remain documented; no test/advisory checks were disabled.
 - MFA/session inventory, durable email, nonce CSP, real pooler validation, backups/restore, and deployment controls remain separate release gates.

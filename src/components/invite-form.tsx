@@ -10,12 +10,12 @@ export function InviteForm({
   organizationId: string;
   baseURL: string;
 }) {
-  const [state, action, pending] = useActionState(
-    inviteMember.bind(null, organizationId),
-    {},
-  );
+  // Keep the canonical action reference stable across SSR retries and client updates.
+  // organizationId is an untrusted resource selector; the action authorizes the session.
+  const [state, action, pending] = useActionState(inviteMember, {});
   return (
     <form action={action} className="space-y-4">
+      <input type="hidden" name="organizationId" value={organizationId} />
       <label>
         Email address
         <Input type="email" name="email" required maxLength={254} />

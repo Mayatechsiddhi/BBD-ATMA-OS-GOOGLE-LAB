@@ -42,12 +42,18 @@ npm test
 npm run db:test:prepare
 npm run test:integration
 npm run test:migrations
+npm run test:pooler
 npm run build
 # With npm run dev running separately:
 npm run test:http
+npm run test:browser
 ```
 
 `db:test:prepare` creates a separate local `_test` database if absent, then applies migrations. It never drops or resets a database. Integration tests require TEST_DATABASE_URL and Mailpit; they delete only generated fixture identities/organizations. HTTP smoke tests use local development and remove only their own fixtures. Neither suite is permitted against production hosts. Build output is checked separately from runtime HTTP functionality.
+
+The pooler check starts a digest-pinned PgBouncer container on loopback port 6432, runs the integration suite in transaction mode, and removes only that temporary container. Browser checks use Playwright Core with an existing Chromium (`CHROMIUM_PATH`, default `/usr/bin/chromium`). Set BROWSER_SERVER_LOG to the current local server log to assert that fixture secrets are absent. The migration check uses its own restricted LOGIN and dedicated database; `.env.migration-test` holds its generated local password, is ignored, and is never a production credential.
+
+Development explicitly uses Next's supported webpack mode after browser runs reproduced a sign-in reload loop under this environment's Turbopack development server. `next build` remains unchanged. Browser checks wait for bounded UI completion and database persistence; they do not use development RSC stream closure as a substitute for user-visible completion. The HTTP suite separately reads the complete native invitation POST response with a 20-second deadline.
 
 ## Database isolation
 

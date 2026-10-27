@@ -3,6 +3,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { chromium, type BrowserContext, type Page } from "playwright-core";
 import { adminDb } from "./local-admin-db";
+import { clinicBrowser } from "./browser-clinic";
 import { db } from "../src/lib/db";
 import { createOrganization } from "../src/modules/organizations/service";
 
@@ -303,6 +304,15 @@ try {
       await page.getByLabel("Private invitation link").inputValue(),
     ).hash.slice("#token=".length),
   );
+  sensitive.push(
+    ...(await clinicBrowser({
+      owner: owner.page,
+      foreign: foreign.context,
+      member: recipient.page,
+      org: org.id,
+      run,
+    })),
+  );
   if (serverLog) {
     const log = readFileSync(serverLog, "utf8");
     assert.ok(
@@ -310,7 +320,7 @@ try {
       "Fixture passwords and private tokens must not appear in server logs",
     );
     console.log(
-      "PASS server log contains no fixture password, verification URL, or issued invitation token",
+      "PASS server log contains no fixture password, verification URL, invitation token or clinic search values",
     );
   } else {
     console.log(
@@ -323,6 +333,11 @@ try {
     `Browser invitation validation failed (${error instanceof Error ? error.name : "unknown"}${error instanceof Error && error.message.startsWith("Invitation response did not finish") ? ": response-stream-timeout" : ""}); request details suppressed.`,
   );
   if (error instanceof Error) {
+    const scenarioLocation = error.stack?.match(
+      /browser-clinic\.ts:\d+:\d+/,
+    )?.[0];
+    if (scenarioLocation)
+      console.error(`Clinic scenario location: ${scenarioLocation}`);
     const first = sensitive.reduce(
       (text, secret) => text.replaceAll(secret, "[REDACTED]"),
       error.message.split("\n")[0],

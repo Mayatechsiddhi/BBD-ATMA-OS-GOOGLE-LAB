@@ -129,8 +129,11 @@ describe("PostgreSQL tenant isolation under the actual unprivileged application 
       { relname: string; secure: boolean }[]
     >`SELECT DISTINCT c.relname,(c.relrowsecurity AND c.relforcerowsecurity) AS secure FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_attribute a ON a.attrelid=c.oid WHERE n.nspname='public' AND c.relkind='r' AND (a.attname='organizationId' OR c.relname='Organization') ORDER BY c.relname`;
     expect(tenantTables.map((t) => t.relname)).toEqual([
+      "Appointment",
       "AuditEvent",
+      "ClinicLead",
       "Contact",
+      "FollowUp",
       "Invitation",
       "Membership",
       "Organization",

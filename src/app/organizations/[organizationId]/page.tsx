@@ -45,6 +45,12 @@ export default async function Dashboard({
           <CardContent className="space-y-4">
             <Link
               className="block text-sm font-medium text-primary underline"
+              href={`/organizations/${organizationId}/clinic`}
+            >
+              Open clinic CRM →
+            </Link>
+            <Link
+              className="block text-sm font-medium text-primary underline"
               href={`/organizations/${organizationId}/crm`}
             >
               Open client relationship workflow →

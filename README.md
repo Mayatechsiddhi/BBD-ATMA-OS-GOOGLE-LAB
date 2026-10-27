@@ -75,3 +75,9 @@ The app uses `RUNTIME_DATABASE_URL`; `DATABASE_URL` is reserved for migrations a
 - `AGENTS.md`, `ARCHITECTURE.md`, `ROADMAP.md`, `SECURITY.md`: persistent engineering context.
 
 The repository initially contained only its product description README. No existing test repository or application code was imported. See `docs/VALIDATION.md` for actual evidence and limitations.
+
+## Clinic CRM Phase 1
+
+Open **Clinic CRM** in an organization workspace. Owners/admins can create phone-first leads, update their pipeline, book or reschedule appointments from a lead record, and track due follow-ups. Members have read-only access. The clinic dashboard uses real scoped database counts. All displayed/entered times are IST; no sample records are seeded into the application.
+
+Apply the additive clinic migration and runtime grants before starting the updated app (`npm run db:migrate:wasm`, then `npm run db:runtime:local` for the documented local setup). Generate Prisma first after checkout. Existing migrations and data are preserved. Run the standard validation commands, including test:migrations, test:pooler, test:http and test:browser; the shared HTTP/browser scripts now cover clinic flows too. Details: [clinic behavior](docs/CLINIC_CRM.md) and [validation evidence](docs/CLINIC_PHASE1_VALIDATION.md).

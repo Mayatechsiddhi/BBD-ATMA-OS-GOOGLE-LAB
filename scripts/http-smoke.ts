@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { adminDb as db } from "./local-admin-db";
+import { localInput, clinicDate } from "../src/modules/clinic/time";
 const base = process.env.BETTER_AUTH_URL!;
 if (!["localhost", "127.0.0.1"].includes(new URL(base).hostname))
   throw new Error("HTTP smoke tests are restricted to local development.");
@@ -13,7 +14,9 @@ const userIds: string[] = [];
 const orgIds: string[] = [];
 async function request(path: string, init: RequestInit = {}) {
   return fetch(base + path, {
-    signal: AbortSignal.timeout(20000),
+    // Dev-mode GETs can compile a route on first navigation. Mutations keep the
+    // 20-second bound, including the invitation/clinic POST regressions.
+    signal: AbortSignal.timeout(init.method === "POST" ? 20000 : 60000),
     ...init,
     redirect: "manual",
     headers: {
@@ -51,7 +54,10 @@ function actionForm(html: string, field: string) {
   for (const match of form.matchAll(/<input\b[^>]*>/g)) {
     const name = match[0].match(/name="([^"]+)"/)?.[1];
     const value = match[0].match(/value="([^"]*)"/)?.[1];
-    if (name?.startsWith("$ACTION_") || name === "organizationId")
+    if (
+      name &&
+      (name.startsWith("$ACTION_") || match[0].includes('type="hidden"'))
+    )
       data.append(decode(name), decode(value ?? ""));
   }
   assert.ok([...data.keys()].length, "Expected Next.js action metadata");
@@ -185,6 +191,77 @@ try {
   }
   assert.equal((await request("/organizations/foreign-tenant-id")).status, 404);
 
+  const clinicBase = location + "/clinic";
+  const clinicLeadForm = actionForm(
+    await (await request(clinicBase + "/leads")).text(),
+    "phone",
+  );
+  clinicLeadForm.set("name", `Synthetic HTTP clinic ${id}`);
+  clinicLeadForm.set("phone", "+12025550101");
+  clinicLeadForm.set("email", "");
+  clinicLeadForm.set("source", "REFERRAL");
+  const clinicCreated = await request(clinicBase + "/leads", {
+    method: "POST",
+    body: clinicLeadForm,
+  });
+  assert.equal(clinicCreated.status, 303);
+  const clinicLeadPath = clinicCreated.headers.get("location")!;
+  const clinicLeadId = clinicLeadPath.split("/").at(-1)!;
+  const clinicDetail = await (await request(clinicLeadPath)).text();
+  const booking = actionForm(clinicDetail, "startsAt");
+  const clinicStart = new Date(Date.now() + 4 * 86400000),
+    clinicEnd = new Date(clinicStart.getTime() + 1800000);
+  booking.set("resource", "Synthetic HTTP clinician");
+  booking.set("startsAt", localInput(clinicStart));
+  booking.set("endsAt", localInput(clinicEnd));
+  const booked = await request(clinicLeadPath, {
+    method: "POST",
+    body: booking,
+  });
+  assert.equal(booked.status, 303);
+  assert.equal(
+    booked.headers.get("location"),
+    clinicBase + "/appointments?day=" + clinicDate(clinicStart),
+  );
+  const clinicAppointment = await db.appointment.findFirstOrThrow({
+    where: { organizationId: orgId, leadId: clinicLeadId },
+  });
+  const clinicFollow = actionForm(clinicDetail, "title");
+  clinicFollow.set("title", `Synthetic HTTP follow-up ${id}`);
+  clinicFollow.set("dueAt", localInput(clinicStart));
+  assert.equal(
+    (await request(clinicLeadPath, { method: "POST", body: clinicFollow }))
+      .status,
+    303,
+  );
+  const followPage = await (await request(clinicBase + "/follow-ups")).text();
+  const completeFollow = actionForm(
+    followPage,
+    "text:>Complete follow-up</button>",
+  );
+  completeFollow.set("status", "DONE");
+  assert.equal(
+    (
+      await request(clinicBase + "/follow-ups", {
+        method: "POST",
+        body: completeFollow,
+      })
+    ).status,
+    303,
+  );
+  assert.equal(
+    (
+      await db.followUp.findFirstOrThrow({
+        where: { organizationId: orgId, leadId: clinicLeadId },
+      })
+    ).status,
+    "DONE",
+  );
+  assert.ok(
+    (await (await request(clinicBase)).text()).includes("Clinic dashboard"),
+  );
+  assert.equal(clinicAppointment.status, "SCHEDULED");
+
   const cookieA = cookie;
   cookie = "";
   await registerAccount(`http-b-${id}@example.com`, "HTTP tenant B owner");
@@ -237,6 +314,31 @@ try {
   const bMembers = await (await request(bLocation + "/members")).text();
   const bRemove = actionForm(bMembers, "text:>Remove</button>");
   const bRevoke = actionForm(bMembers, "text:>Revoke</button>");
+  for (const path of [
+    clinicBase,
+    clinicBase + "/leads",
+    clinicLeadPath,
+    clinicBase + "/appointments",
+    clinicBase + "/follow-ups",
+  ]) {
+    const denied = await request(path);
+    assert.equal(denied.status, 404);
+    assert.ok(!(await denied.text()).includes(`Synthetic HTTP clinic ${id}`));
+  }
+  const deniedClinicBooking = await request(clinicLeadPath, {
+    method: "POST",
+    body: booking,
+  });
+  assert.equal(deniedClinicBooking.status, 303);
+  assert.ok(
+    deniedClinicBooking.headers.get("location")?.includes("permission"),
+  );
+  assert.equal(
+    await db.appointment.count({
+      where: { organizationId: orgId, leadId: clinicLeadId },
+    }),
+    1,
+  );
   cookie = cookieA;
   const deniedInvite = await request(bLocation + "/members", {
     method: "POST",
@@ -326,7 +428,7 @@ try {
   cookie = "";
   assert.equal((await request(location)).status, 307);
   console.log(
-    "HTTP smoke passed: database health, real signup/email verification/sign-in, protected redirects, organization creation and settings through Server Actions, dashboard, members, module boundaries, tenant denial, CSRF rejection, persisted lead-to-customer CRM workflow and audit trail, and sign-out; real tenant B pages and captured Server Actions reject tenant A cookies.",
+    "HTTP smoke passed: database health, real signup/email verification/sign-in, protected redirects, organization creation and settings through Server Actions, dashboard, members, module boundaries, tenant denial, CSRF rejection, persisted lead-to-customer CRM workflow and audit trail, and sign-out; real tenant B pages and captured Server Actions reject tenant A cookies; clinic lead creation, IST appointment booking, follow-up completion, dashboard and foreign-session clinic page/action denial.",
   );
 } finally {
   await db.organization.deleteMany({ where: { id: { in: orgIds } } });

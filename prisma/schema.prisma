@@ -78,6 +78,9 @@ model Organization {
   invitations Invitation[]
   auditEvents AuditEvent[]
   contacts Contact[]
+  clinicLeads ClinicLead[]
+  appointments Appointment[]
+  followUps FollowUp[]
 }
 model Membership {
   id String @id @default(cuid())
@@ -132,4 +135,74 @@ model Contact {
   @@unique([organizationId,id])
   @@unique([organizationId,email])
   @@index([organizationId,status,createdAt])
+}
+
+
+enum ClinicLeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CHECKED_IN
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+enum FollowUpStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+model ClinicLead {
+  id String @id @default(cuid())
+  organizationId String
+  name String
+  phone String
+  email String?
+  source String
+  status ClinicLeadStatus @default(NEW)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  followUps FollowUp[]
+  @@unique([organizationId,id])
+  @@index([organizationId,status,createdAt])
+  @@index([organizationId,phone])
+}
+model Appointment {
+  id String @id @default(cuid())
+  organizationId String
+  leadId String
+  resource String
+  startsAt DateTime @db.Timestamptz(3)
+  endsAt DateTime @db.Timestamptz(3)
+  status AppointmentStatus @default(SCHEDULED)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead ClinicLead @relation(fields: [organizationId,leadId], references: [organizationId,id], onDelete: Cascade, map: "Appointment_lead_tenant_fkey")
+  @@unique([organizationId,id])
+  @@index([organizationId,startsAt])
+  @@index([organizationId,resource,startsAt])
+}
+model FollowUp {
+  id String @id @default(cuid())
+  organizationId String
+  leadId String
+  title String
+  dueAt DateTime @db.Timestamptz(3)
+  status FollowUpStatus @default(OPEN)
+  completedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lead ClinicLead @relation(fields: [organizationId,leadId], references: [organizationId,id], onDelete: Cascade, map: "FollowUp_lead_tenant_fkey")
+  @@unique([organizationId,id])
+  @@index([organizationId,status,dueAt])
 }

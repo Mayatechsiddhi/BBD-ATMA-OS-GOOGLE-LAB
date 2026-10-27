@@ -65,6 +65,15 @@ try {
    GRANT UPDATE(name,email,company,status,"updatedAt") ON public."Contact" TO bbd_runtime;
    GRANT EXECUTE ON FUNCTION bbd_private.actor_id(),bbd_private.organization_id(),bbd_private.membership_role(text),bbd_private.invitation_recipient(text,text),bbd_private.create_organization(text,text,text) TO bbd_runtime;`);
   }
+  const clinic = await client.query(
+    `SELECT to_regclass('public."ClinicLead"') IS NOT NULL AS ready`,
+  );
+  if (clinic.rows[0].ready) {
+    await client.query(`GRANT SELECT,INSERT ON public."ClinicLead",public."Appointment",public."FollowUp" TO bbd_runtime;
+      GRANT UPDATE(name,phone,email,source,status,"updatedAt") ON public."ClinicLead" TO bbd_runtime;
+      GRANT UPDATE(resource,"startsAt","endsAt",status,"updatedAt") ON public."Appointment" TO bbd_runtime;
+      GRANT UPDATE(title,"dueAt",status,"completedAt","updatedAt") ON public."FollowUp" TO bbd_runtime;`);
+  }
   if (!process.env.RUNTIME_DATABASE_URL)
     fs.appendFileSync(
       ".env",

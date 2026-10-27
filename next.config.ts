@@ -9,6 +9,8 @@ const config: NextConfig = {
       ignore: [
         /\/api\/auth\/(verify-email|reset-password)/,
         /\/reset-password/,
+        // Clinic search URLs may contain phone numbers or names.
+        /\/organizations\/[^/]+\/clinic(?:\/|\?|$)/,
       ],
     },
   },

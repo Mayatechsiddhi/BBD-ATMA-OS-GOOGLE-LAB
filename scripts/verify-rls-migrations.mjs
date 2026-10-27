@@ -14,7 +14,7 @@ url.pathname = "/postgres";
 const admin = new pg.Client({ connectionString: url.toString() });
 await admin.connect();
 // Separate login and database: preserve the older SET ROLE verification database.
-const name = "bbd_login_rls_migration_test",
+const name = "bbd_clinic_migration_test",
   owner = "bbd_login_migration_test_owner";
 const credentialFile = ".env.migration-test";
 if (!fs.existsSync(credentialFile))
@@ -44,7 +44,7 @@ try {
   );
   if (!existing.rowCount) {
     await admin.query(
-      "CREATE DATABASE bbd_login_rls_migration_test OWNER bbd_login_migration_test_owner",
+      `CREATE DATABASE ${pg.escapeIdentifier(name)} OWNER ${pg.escapeIdentifier(owner)}`,
     );
     created = true;
   } else if (existing.rows[0].owner !== owner)
@@ -105,9 +105,9 @@ const ownership = new pg.Client({ connectionString: migration.toString() });
 try {
   await ownership.connect();
   const tables = await ownership.query(
-    `SELECT pg_get_userbyid(relowner) AS owner FROM pg_class WHERE oid IN ('public."Organization"'::regclass,'public."Membership"'::regclass,'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass)`,
+    `SELECT pg_get_userbyid(relowner) AS owner FROM pg_class WHERE oid IN ('public."Organization"'::regclass,'public."Membership"'::regclass,'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass)`,
   );
-  if (tables.rowCount !== 5 || tables.rows.some((r) => r.owner !== owner))
+  if (tables.rowCount !== 8 || tables.rows.some((r) => r.owner !== owner))
     throw new Error("Unexpected table owners in migration verification");
   const funcs = await ownership.query(
     "SELECT pg_get_userbyid(p.proowner) AS owner FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='bbd_private' AND p.prosecdef",

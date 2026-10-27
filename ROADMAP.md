@@ -50,3 +50,15 @@ Replace checkboxes only with verifiable evidence. Update `docs/VALIDATION.md` fo
 Implementation continues on `security/tenant-rls-hardening` in PR #3; see `docs/PR3_REVIEW_FOLLOWUP.md` for review corrections and exact validation evidence. Independent review of the final changes is still required. After that review accepts the boundary, recommend a scoped CRM opportunities/pipeline issue with tenant-aware parent keys and the same negative tests. No further CRM feature work is included in this security branch.
 
 PR #3 exists: https://github.com/bloomdigital369-hue/BBD-MASTER-ATMA-OS/pull/3 . Git access verifies its head; API access for metadata/CI and body updates remains independently checked and reported in the follow-up. No merge or deployment is authorized.
+
+## Clinic CRM Phase 1 — feat/clinic-crm-mvp
+
+- [x] Clinic lead creation, editing, source/status tracking, search and paginated directory.
+- [x] Appointment booking/rescheduling, resource/lead overlap protection and status lifecycle.
+- [x] Due/overdue follow-ups, editing, completion/cancellation and live dashboard counts.
+- [x] Three additional FORCE-RLS tables, composite tenant child keys, least-privilege runtime grants, synthetic security/workflow fixtures and HTTP/browser coverage.
+- [ ] Independent review of the new migration, grants and clinic workflows; staging/provider validation before real use.
+- [ ] Practitioner/room directory, configurable clinic timezone/hours, richer staff roles, consent/retention policy and larger agenda/task pagination.
+- [ ] Durable reminder outbox and provider delivery only after consent, retry/idempotency and approvals are designed. No messages are sent in Phase 1.
+
+Exact commands, results, initial failures and remaining scope are in docs/CLINIC_PHASE1_VALIDATION.md. PR #3 is not merged; main and deployments remain outside this milestone.

@@ -46,6 +46,7 @@ export default async function OrganizationLayout({
             ["/members", Users, "People & access"],
             ["/settings", Settings, "Organization settings"],
             ["/crm", ContactRound, "Client relationships"],
+            ["/clinic", ContactRound, "Clinic CRM"],
             ["/modules", Layers3, "Platform modules"],
           ].map(([path, Icon, label]) => {
             const I = Icon as typeof Building2;

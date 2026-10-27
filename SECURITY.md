@@ -25,4 +25,8 @@ This milestone is production-oriented application code, not a declaration of ope
 
 ## Dependency advisory status
 
+Clinic Phase 1 rechecks the registry rather than relying on the earlier foundation snapshot. fast-uri 3.1.8 had URI-normalization advisories; its reviewed, range-compatible 3.1.9 leaf patch is locked. See docs/CLINIC_PHASE1_VALIDATION.md for current production/full audit results. Audit output is a dated advisory snapshot, not a security certification.
+
+Historical foundation review:
+
 The reviewed Prisma 6 dependency chain had an advisory in deepmerge-ts; Prisma 7.10.1 resolves it. The current Next.js ESLint and Prisma development tooling depend on braces <=3.0.3, reported as GHSA-vfj7-8cjw-p6xm (deeply nested glob-pattern stack exhaustion). The registry has no patched braces release at the time of this milestone. Inputs here are repository-maintained development patterns; this is not a public application endpoint. Do not process untrusted patterns with these tools. `npm audit` reports high-severity development dependency paths; do not describe the full dependency tree as vulnerability-free. Record exact audit results in validation evidence and track an upstream compatible fix. Do not downgrade Next.js or disable checks to conceal the advisory.

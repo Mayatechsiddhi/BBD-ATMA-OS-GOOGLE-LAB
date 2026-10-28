@@ -133,10 +133,13 @@ describe("PostgreSQL tenant isolation under the actual unprivileged application 
       "AuditEvent",
       "ClinicLead",
       "Contact",
+      "Doctor",
       "FollowUp",
       "Invitation",
       "Membership",
       "Organization",
+      "Patient",
+      "QueueToken",
     ]);
     expect(tenantTables.every((t) => t.secure)).toBe(true);
     const publicFunctions = await admin.$queryRaw<

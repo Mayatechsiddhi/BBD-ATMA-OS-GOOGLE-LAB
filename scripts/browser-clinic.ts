@@ -16,7 +16,7 @@ export async function clinicBrowser({
   run: string;
 }) {
   const base = `/organizations/${org}/clinic`;
-  await owner.goto(base + "/leads");
+  await owner.goto(base + "/leads", { waitUntil: "commit" });
   await owner
     .getByLabel("Lead name", { exact: true })
     .fill(`Synthetic clinic lead ${run}`);
@@ -24,7 +24,7 @@ export async function clinicBrowser({
   await owner
     .getByRole("button", { name: "Add clinic lead", exact: true })
     .click();
-  await owner.waitForURL(`**${base}/leads/*`);
+  await owner.waitForURL(`**${base}/leads/*`, { waitUntil: "commit" });
   const leadPath = new URL(owner.url()).pathname;
   const leadId = leadPath.split("/").at(-1)!;
   assert.equal(
@@ -37,7 +37,7 @@ export async function clinicBrowser({
   await owner
     .getByRole("button", { name: "Save lead details", exact: true })
     .click();
-  await owner.waitForURL(`**${base}/leads`);
+  await owner.waitForURL(`**${base}/leads`, { waitUntil: "commit" });
   assert.equal(
     (await adminDb.clinicLead.findUniqueOrThrow({ where: { id: leadId } }))
       .phone,
@@ -53,15 +53,15 @@ export async function clinicBrowser({
   await owner
     .getByRole("link", { name: `Synthetic clinic lead ${run}`, exact: true })
     .waitFor();
-  await owner.goto(leadPath);
+  await owner.goto(leadPath, { waitUntil: "commit" });
   await owner.getByRole("button", { name: "contacted", exact: true }).click();
-  await owner.waitForURL(`**${base}/leads`);
+  await owner.waitForURL(`**${base}/leads`, { waitUntil: "commit" });
   assert.equal(
     (await adminDb.clinicLead.findUniqueOrThrow({ where: { id: leadId } }))
       .status,
     "CONTACTED",
   );
-  await owner.goto(leadPath);
+  await owner.goto(leadPath, { waitUntil: "commit" });
   const start = new Date(Date.now() + 2 * 86400000),
     end = new Date(start.getTime() + 1800000);
   await owner.getByLabel("Practitioner or resource").fill("Synthetic Doctor");
@@ -77,7 +77,9 @@ export async function clinicBrowser({
     .getByRole("button", { name: "Book appointment", exact: true })
     .click();
   const booking = (await bookingResponse).request();
-  await owner.waitForURL(`**${base}/appointments?day=${clinicDate(start)}`);
+  await owner.waitForURL(`**${base}/appointments?day=${clinicDate(start)}`, {
+    waitUntil: "commit",
+  });
   await owner
     .getByRole("link", { name: `Synthetic clinic lead ${run}`, exact: true })
     .waitFor();
@@ -90,7 +92,9 @@ export async function clinicBrowser({
     "Booked instant must round-trip IST without timezone shifts",
   );
   await owner.getByRole("button", { name: "confirmed", exact: true }).click();
-  await owner.waitForURL(`**${base}/appointments?day=${clinicDate(start)}`);
+  await owner.waitForURL(`**${base}/appointments?day=${clinicDate(start)}`, {
+    waitUntil: "commit",
+  });
   await owner
     .getByRole("button", { name: "confirmed", exact: true })
     .waitFor({ state: "detached" });
@@ -149,7 +153,7 @@ export async function clinicBrowser({
     "PASS clinic browser cross-tenant pages and captured booking action denied without writes",
   );
 
-  await owner.goto(leadPath);
+  await owner.goto(leadPath, { waitUntil: "commit" });
   await owner.getByText("Reschedule appointment", { exact: true }).click();
   const reschedule = owner.locator("form").filter({
     has: owner.getByRole("button", { name: "Save reschedule", exact: true }),
@@ -164,7 +168,9 @@ export async function clinicBrowser({
   await reschedule
     .getByRole("button", { name: "Save reschedule", exact: true })
     .click();
-  await owner.waitForURL(`**${base}/appointments?day=${clinicDate(moved)}`);
+  await owner.waitForURL(`**${base}/appointments?day=${clinicDate(moved)}`, {
+    waitUntil: "commit",
+  });
   assert.equal(
     clinicDate(
       (
@@ -176,7 +182,9 @@ export async function clinicBrowser({
     clinicDate(moved),
   );
   await owner.getByRole("button", { name: "cancelled", exact: true }).click();
-  await owner.waitForURL(`**${base}/appointments?day=${clinicDate(moved)}`);
+  await owner.waitForURL(`**${base}/appointments?day=${clinicDate(moved)}`, {
+    waitUntil: "commit",
+  });
   await owner
     .getByRole("button", { name: "cancelled", exact: true })
     .waitFor({ state: "detached" });
@@ -190,7 +198,7 @@ export async function clinicBrowser({
     "Cancellation must persist after the UI updates",
   );
 
-  await owner.goto(leadPath);
+  await owner.goto(leadPath, { waitUntil: "commit" });
   await owner
     .getByLabel("Follow-up task", { exact: true })
     .fill(`Synthetic follow-up ${run}`);
@@ -198,7 +206,7 @@ export async function clinicBrowser({
   await owner
     .getByRole("button", { name: "Create follow-up", exact: true })
     .click();
-  await owner.waitForURL(`**${base}/follow-ups`);
+  await owner.waitForURL(`**${base}/follow-ups`, { waitUntil: "commit" });
   await owner
     .getByText(`Synthetic follow-up ${run}`, { exact: true })
     .waitFor();
@@ -213,12 +221,15 @@ export async function clinicBrowser({
   });
   assert.equal(followUp.status, "DONE");
   assert.ok(followUp.completedAt);
-  await owner.goto(base);
+  await owner.goto(base, { waitUntil: "commit" });
   await owner
     .getByRole("heading", { name: "Clinic dashboard", exact: true })
     .waitFor();
   assert.ok((await owner.textContent("main"))?.includes("Active leads"));
-  await member.goto(leadPath);
+  await member.goto(leadPath, { waitUntil: "commit" });
+  await member
+    .getByRole("heading", { name: `Synthetic clinic lead ${run}`, exact: true })
+    .waitFor();
   assert.equal(
     await member
       .getByRole("button", { name: "Book appointment", exact: true })

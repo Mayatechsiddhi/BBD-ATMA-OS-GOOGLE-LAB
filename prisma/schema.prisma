@@ -64,6 +64,7 @@ model RateLimit {
   lastRequest BigInt
 }
 enum Role {
+  DISPLAY
   OWNER
   ADMIN
   MEMBER
@@ -81,6 +82,9 @@ model Organization {
   clinicLeads ClinicLead[]
   appointments Appointment[]
   followUps FollowUp[]
+  patients Patient[]
+  doctors Doctor[]
+  queueTokens QueueToken[]
 }
 model Membership {
   id String @id @default(cuid())
@@ -171,6 +175,7 @@ model ClinicLead {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   appointments Appointment[]
   followUps FollowUp[]
+  patient Patient?
   @@unique([organizationId,id])
   @@index([organizationId,status,createdAt])
   @@index([organizationId,phone])
@@ -187,6 +192,8 @@ model Appointment {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lead ClinicLead @relation(fields: [organizationId,leadId], references: [organizationId,id], onDelete: Cascade, map: "Appointment_lead_tenant_fkey")
+  queueTokens QueueToken[]
+  @@unique([organizationId,id,leadId])
   @@unique([organizationId,id])
   @@index([organizationId,startsAt])
   @@index([organizationId,resource,startsAt])
@@ -205,4 +212,61 @@ model FollowUp {
   lead ClinicLead @relation(fields: [organizationId,leadId], references: [organizationId,id], onDelete: Cascade, map: "FollowUp_lead_tenant_fkey")
   @@unique([organizationId,id])
   @@index([organizationId,status,dueAt])
+}
+
+model Patient {
+  id String @id @default(cuid())
+  organizationId String
+  leadId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  lead ClinicLead @relation(fields:[organizationId,leadId], references:[organizationId,id], onDelete:Cascade)
+  tokens QueueToken[]
+  @@unique([organizationId,leadId])
+  @@unique([organizationId,id])
+  @@unique([organizationId,id,leadId])
+}
+model Doctor {
+  id String @id @default(cuid())
+  organizationId String
+  name String
+  room String
+  resource String
+  revision Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  tokens QueueToken[]
+  @@unique([organizationId,id])
+  @@unique([organizationId,resource])
+}
+enum QueueStatus {
+  WAITING
+  CALLED
+  SKIPPED
+  COMPLETED
+  CANCELLED
+}
+model QueueToken {
+  id String @id @default(cuid())
+  organizationId String
+  patientId String
+  leadId String
+  doctorId String
+  appointmentId String?
+  day String
+  number Int
+  status QueueStatus @default(WAITING)
+  callCount Int @default(0)
+  calledAt DateTime? @db.Timestamptz(3)
+  completedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  patient Patient @relation(fields:[organizationId,patientId,leadId], references:[organizationId,id,leadId], onDelete:Cascade)
+  doctor Doctor @relation(fields:[organizationId,doctorId], references:[organizationId,id], onDelete:Cascade)
+  appointment Appointment? @relation(fields:[organizationId,appointmentId,leadId], references:[organizationId,id,leadId], onDelete:Cascade)
+  @@unique([organizationId,id])
+  @@unique([organizationId,day,number])
+  @@index([organizationId,day,doctorId,status,number])
 }

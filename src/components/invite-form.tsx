@@ -1,5 +1,6 @@
 "use client";
 import { useActionState } from "react";
+import { useHydrated } from "@/lib/use-hydrated";
 import { inviteMember } from "@/app/actions";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,9 @@ export function InviteForm({
   // Keep the canonical action reference stable across SSR retries and client updates.
   // organizationId is an untrusted resource selector; the action authorizes the session.
   const [state, action, pending] = useActionState(inviteMember, {});
+  const hydrated = useHydrated();
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} data-hydrated={hydrated} className="space-y-4">
       <input type="hidden" name="organizationId" value={organizationId} />
       <label>
         Email address
@@ -25,6 +27,7 @@ export function InviteForm({
         <select className="mt-2 block w-full" name="role">
           <option value="MEMBER">Member</option>
           <option value="ADMIN">Administrator</option>
+          <option value="DISPLAY">Calling display only</option>
         </select>
       </label>
       <Button disabled={pending}>

@@ -3,6 +3,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { chromium, type BrowserContext, type Page } from "playwright-core";
 import { adminDb } from "./local-admin-db";
+import { callingBrowser } from "./browser-calling";
 import { clinicBrowser } from "./browser-clinic";
 import { db } from "../src/lib/db";
 import { createOrganization } from "../src/modules/organizations/service";
@@ -67,7 +68,7 @@ async function account(label: string) {
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL("**/organizations");
+  await page.waitForURL("**/organizations", { waitUntil: "commit" });
   assert.equal(
     new URL(page.url()).search,
     "",
@@ -114,7 +115,8 @@ try {
   });
   orgIds.push(b.id);
   const members = `/organizations/${org.id}/members`;
-  await owner.page.goto(members);
+  await owner.page.goto(members, { waitUntil: "commit" });
+  await owner.page.locator('form[data-hydrated="true"]').waitFor();
   const started = Date.now();
   const response = await submit(owner.page, recipient.email);
   await owner.page.getByLabel("Private invitation link").waitFor();
@@ -207,22 +209,26 @@ try {
     "PASS forged OWNER role rejected; same form recovers and creates a fresh invitation",
   );
 
-  await foreign.page.goto(link);
+  await foreign.page.goto(link, { waitUntil: "commit" });
   await foreign.page.waitForFunction(() => location.hash === "");
   await foreign.page.getByRole("button", { name: "Accept invitation" }).click();
-  await foreign.page.waitForURL("**/invitations?error=**");
+  await foreign.page.waitForURL("**/invitations?error=**", {
+    waitUntil: "commit",
+  });
   assert.equal(
     await adminDb.membership.count({
       where: { organizationId: org.id, userId: foreign.userId },
     }),
     0,
   );
-  await recipient.page.goto(link);
+  await recipient.page.goto(link, { waitUntil: "commit" });
   await recipient.page.waitForFunction(() => location.hash === "");
   await recipient.page
     .getByRole("button", { name: "Accept invitation" })
     .click();
-  await recipient.page.waitForURL(`**/organizations/${org.id}`);
+  await recipient.page.waitForURL(`**/organizations/${org.id}`, {
+    waitUntil: "commit",
+  });
   assert.equal(
     (
       await adminDb.membership.findUniqueOrThrow({
@@ -243,12 +249,14 @@ try {
       })
     ).acceptedAt,
   );
-  await recipient.page.goto(link);
+  await recipient.page.goto(link, { waitUntil: "commit" });
   await recipient.page.waitForFunction(() => location.hash === "");
   await recipient.page
     .getByRole("button", { name: "Accept invitation" })
     .click();
-  await recipient.page.waitForURL("**/invitations?error=**");
+  await recipient.page.waitForURL("**/invitations?error=**", {
+    waitUntil: "commit",
+  });
   assert.equal(
     await adminDb.auditEvent.count({
       where: { organizationId: org.id, action: "invitation.accepted" },
@@ -313,6 +321,18 @@ try {
       run,
     })),
   );
+  const displayAccount = await account("calling-display");
+  sensitive.push(
+    ...(await callingBrowser({
+      owner: owner.page,
+      foreign: foreign.context,
+      screen: displayAccount.page,
+      org: org.id,
+      actor: owner.userId,
+      screenUser: displayAccount.userId,
+      run,
+    })),
+  );
   if (serverLog) {
     const log = readFileSync(serverLog, "utf8");
     assert.ok(
@@ -334,10 +354,10 @@ try {
   );
   if (error instanceof Error) {
     const scenarioLocation = error.stack?.match(
-      /browser-clinic\.ts:\d+:\d+/,
+      /browser-(?:clinic|calling|invitations)\.ts:\d+:\d+/,
     )?.[0];
     if (scenarioLocation)
-      console.error(`Clinic scenario location: ${scenarioLocation}`);
+      console.error(`Browser scenario location: ${scenarioLocation}`);
     const first = sensitive.reduce(
       (text, secret) => text.replaceAll(secret, "[REDACTED]"),
       error.message.split("\n")[0],

@@ -14,9 +14,9 @@ url.pathname = "/postgres";
 const admin = new pg.Client({ connectionString: url.toString() });
 await admin.connect();
 // Separate login and database: preserve the older SET ROLE verification database.
-const name = "bbd_clinic_migration_test",
-  owner = "bbd_login_migration_test_owner";
-const credentialFile = ".env.migration-test";
+const name = "bbd_calling_migration_test",
+  owner = "bbd_calling_migration_test_owner";
+const credentialFile = ".env.calling-migration-test";
 if (!fs.existsSync(credentialFile))
   fs.writeFileSync(
     credentialFile,
@@ -34,7 +34,7 @@ try {
   );
   if (!roles.rowCount)
     await admin.query(
-      `CREATE ROLE bbd_login_migration_test_owner LOGIN NOINHERIT NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD ${pg.escapeLiteral(password)}`,
+      `CREATE ROLE ${pg.escapeIdentifier(owner)} LOGIN NOINHERIT NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD ${pg.escapeLiteral(password)}`,
     );
   else if (Object.values(roles.rows[0]).some(Boolean))
     throw new Error("Existing migration test role unsafe; left unchanged");
@@ -105,9 +105,9 @@ const ownership = new pg.Client({ connectionString: migration.toString() });
 try {
   await ownership.connect();
   const tables = await ownership.query(
-    `SELECT pg_get_userbyid(relowner) AS owner FROM pg_class WHERE oid IN ('public."Organization"'::regclass,'public."Membership"'::regclass,'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass)`,
+    `SELECT pg_get_userbyid(relowner) AS owner FROM pg_class WHERE oid IN ('public."Organization"'::regclass,'public."Membership"'::regclass,'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass,'public."Patient"'::regclass,'public."Doctor"'::regclass,'public."QueueToken"'::regclass)`,
   );
-  if (tables.rowCount !== 8 || tables.rows.some((r) => r.owner !== owner))
+  if (tables.rowCount !== 11 || tables.rows.some((r) => r.owner !== owner))
     throw new Error("Unexpected table owners in migration verification");
   const funcs = await ownership.query(
     "SELECT pg_get_userbyid(p.proowner) AS owner FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='bbd_private' AND p.prosecdef",

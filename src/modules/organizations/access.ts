@@ -29,7 +29,9 @@ export async function audit(
   action: string,
   subjectId?: string,
 ) {
-  await tx.auditEvent.create({
-    data: { organizationId, actorId, action, subjectId },
+  // Do not require audit SELECT rights to append. Display-only invitees must
+  // record acceptance without gaining access to the private audit directory.
+  await tx.auditEvent.createMany({
+    data: [{ organizationId, actorId, action, subjectId }],
   });
 }

@@ -65,6 +65,7 @@ export default async function Members({
                           <option value="OWNER">Owner</option>
                           <option value="ADMIN">Admin</option>
                           <option value="MEMBER">Member</option>
+                          <option value="DISPLAY">Display only</option>
                         </select>
                         <Button variant="outline">Update</Button>
                       </form>

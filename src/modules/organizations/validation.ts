@@ -13,7 +13,7 @@ export const inviteInput = z.object({
     .email()
     .max(254)
     .transform((v) => v.toLowerCase()),
-  role: z.enum(["ADMIN", "MEMBER"]),
+  role: z.enum(["ADMIN", "MEMBER", "DISPLAY"]),
 });
-export const memberRole = z.enum(["OWNER", "ADMIN", "MEMBER"]);
+export const memberRole = z.enum(["OWNER", "ADMIN", "MEMBER", "DISPLAY"]);
 export const tokenInput = z.string().regex(/^[a-f0-9]{64}$/);

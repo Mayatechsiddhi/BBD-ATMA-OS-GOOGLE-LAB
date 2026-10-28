@@ -204,6 +204,18 @@ export async function rescheduleAppointment(
       throw new ClinicError(
         "Only scheduled or confirmed appointments can be rescheduled.",
       );
+    if (
+      await tx.queueToken.count({
+        where: {
+          organizationId,
+          appointmentId: id,
+          status: { notIn: ["COMPLETED", "CANCELLED"] },
+        },
+      })
+    )
+      throw new ClinicError(
+        "Cancel the active queue token before rescheduling.",
+      );
     future(data.startsAt);
     await available(tx, organizationId, appointment.leadId, data, id);
     const updated = await tx.appointment.update({
@@ -248,6 +260,35 @@ export async function transitionAppointment(
       `clinic.appointment.${status.toLowerCase()}`,
       id,
     );
+    if (["CANCELLED", "NO_SHOW", "COMPLETED"].includes(status)) {
+      const token = await tx.queueToken.findFirst({
+        where: {
+          organizationId,
+          appointmentId: id,
+          status: { notIn: ["COMPLETED", "CANCELLED"] },
+        },
+      });
+      if (token && !["COMPLETED", "CANCELLED"].includes(token.status)) {
+        await tx.queueToken.update({
+          where: { organizationId_id: { organizationId, id: token.id } },
+          data: {
+            status: status === "COMPLETED" ? "COMPLETED" : "CANCELLED",
+            completedAt: status === "COMPLETED" ? new Date() : null,
+          },
+        });
+        await tx.doctor.update({
+          where: { organizationId_id: { organizationId, id: token.doctorId } },
+          data: { revision: { increment: 1 } },
+        });
+        await audit(
+          tx,
+          organizationId,
+          userId,
+          "clinic.token.appointment_closed",
+          token.id,
+        );
+      }
+    }
     return updated;
   });
 }

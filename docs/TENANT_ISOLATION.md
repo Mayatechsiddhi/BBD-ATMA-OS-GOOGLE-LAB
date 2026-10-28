@@ -1,5 +1,7 @@
 # Foundation verification and tenant-isolation audit
 
+Doctor calling extends the current protected inventory to eleven tables and adds a restricted DISPLAY role. See DOCTOR_CALLING.md; counts and findings in older milestones below remain historical.
+
 Clinic Phase 1 extends the protected inventory to eight tables. See CLINIC_CRM.md and CLINIC_PHASE1_VALIDATION.md for the additive clinic migration, grants, composite foreign keys and current verification; earlier milestone counts below are historical.
 
 Baseline: `e8850236bf4dd801f4706ba5b4a6727c5353d143` on `feat/issue-1-production-foundation`. Work continues on `security/tenant-rls-hardening`, with no new repository or product redesign. This is a scoped engineering review and executed regression suite, not a third-party security certification or production readiness approval.

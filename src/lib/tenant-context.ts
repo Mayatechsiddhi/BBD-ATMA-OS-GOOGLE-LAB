@@ -14,20 +14,20 @@ export async function assertRuntimeDatabase(tx: Prisma.TransactionClient = db) {
         AND pg_has_role(session_user,elevated.oid,'MEMBER'))
       OR EXISTS (SELECT 1 FROM pg_class c WHERE c.oid IN
         ('public."Organization"'::regclass,'public."Membership"'::regclass,
-         'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass)
+         'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass,'public."Patient"'::regclass,'public."Doctor"'::regclass,'public."QueueToken"'::regclass)
         AND pg_has_role(session_user,c.relowner,'MEMBER'))
       OR EXISTS (SELECT 1 FROM pg_database d WHERE d.datname=current_database()
         AND pg_has_role(session_user,d.datdba,'MEMBER'))) AS unsafe,
       (SELECT count(*)::int FROM pg_class WHERE oid IN
         ('public."Organization"'::regclass,'public."Membership"'::regclass,
-         'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass)
+         'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass,'public."Patient"'::regclass,'public."Doctor"'::regclass,'public."QueueToken"'::regclass)
         AND relrowsecurity AND relforcerowsecurity) AS "protectedTables",
       EXISTS(SELECT 1 FROM pg_policy WHERE polrelid='public."Membership"'::regclass AND polname='membership_self') AS "transactionContext"
     FROM pg_roles r WHERE r.rolname=session_user`;
   if (
     !role ||
     role.unsafe ||
-    role.protectedTables !== 8 ||
+    role.protectedTables !== 11 ||
     !role.transactionContext
   )
     throw new Error("Unsafe runtime database role or missing tenant RLS");

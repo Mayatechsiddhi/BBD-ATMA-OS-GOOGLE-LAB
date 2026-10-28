@@ -31,6 +31,7 @@ export async function listOrganizations(userId: string) {
   return withActor(userId, (tx) =>
     tx.organization.findMany({
       where: { memberships: { some: { userId } } },
+      include: { memberships: { where: { userId }, select: { role: true } } },
       orderBy: { createdAt: "asc" },
     }),
   );

@@ -41,7 +41,11 @@ export default async function Organizations({
               organizations.map((org) => (
                 <Link
                   key={org.id}
-                  href={`/organizations/${org.id}`}
+                  href={
+                    org.memberships[0]?.role === "DISPLAY"
+                      ? `/display/${org.id}`
+                      : `/organizations/${org.id}`
+                  }
                   className="block rounded-lg border p-4 font-medium hover:bg-muted"
                 >
                   {org.name}

@@ -77,3 +77,13 @@ See docs/DEVELOPMENT_AUTOMATION.md and docs/AUTOMATION_VALIDATION.md for permiss
 - [x] Add isolated PostgreSQL privilege-drift regressions and an explicit CI check. See docs/PR4_PRIVILEGE_DRIFT_VALIDATION.md for actual evidence and limits.
 - [ ] Paginate appointment agendas and follow-ups beyond the current 100-record limit, preserving deterministic ordering, filters and tenant isolation. Add greater-than-100-record tests proving every permitted record remains reachable. Lead-detail histories also need pagination beyond 50 records. This is a future clinic development task, not included in the security fix.
 - [ ] Independent human review of SQL/privilege enforcement, RLS, authentication and clinic migration remains required before merge. Production/cloud staging approval gates are unchanged.
+
+## Clinic CRM + Doctor Calling Display — feat/clinic-doctor-calling
+
+Implemented scope and validation: docs/DOCTOR_CALLING.md and docs/DOCTOR_CALLING_VALIDATION.md. Foundation parent is 9370de3; PR #4 remains Draft for independent human security review.
+
+- Administrative patient registration linked to existing leads; walk-in and appointment-to-token issuance.
+- Stable doctor/room queues; audited daily token allocation, call/recall/skip/complete/cancel and appointment synchronization.
+- Authenticated near-real-time SSE and a patient-identity-free display with DISPLAY-only permissions.
+- Patient/reception pagination, tenant/RLS constraints, negative/concurrency regressions and browser transport coverage.
+- Next: independent review, the existing >100 appointment-picker/agenda/follow-up limits, doctor archiving/rosters and granular staff assignment, device/session controls, consent/retention, accessibility and multi-instance load/proxy tests. Deployment remains separately approval-gated.

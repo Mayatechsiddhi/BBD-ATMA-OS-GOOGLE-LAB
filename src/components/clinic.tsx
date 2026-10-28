@@ -38,6 +38,7 @@ export function ClinicHeader({
           ["/leads", "Leads"],
           ["/appointments", "Appointments"],
           ["/follow-ups", "Follow-ups"],
+          ["/reception", "Reception & calling"],
         ].map(([path, label]) => (
           <Link key={path} href={base + path}>
             {label}

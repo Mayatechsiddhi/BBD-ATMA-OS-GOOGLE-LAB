@@ -5,6 +5,15 @@ export const runtimeTables: Record<
   string,
   { privileges: string[]; update?: string[] }
 > = {
+  Patient: { privileges: ["SELECT", "INSERT"] },
+  Doctor: {
+    privileges: ["SELECT", "INSERT"],
+    update: ["name", "room", "revision", "updatedAt"],
+  },
+  QueueToken: {
+    privileges: ["SELECT", "INSERT"],
+    update: ["status", "callCount", "calledAt", "completedAt", "updatedAt"],
+  },
   User: { privileges: ["SELECT", "INSERT", "UPDATE"] },
   Session: { privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"] },
   Account: { privileges: ["SELECT", "INSERT", "UPDATE", "DELETE"] },

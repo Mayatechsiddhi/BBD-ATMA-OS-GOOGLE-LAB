@@ -6,8 +6,15 @@ import {
 } from "../../src/modules/organizations/policy";
 import type { Role } from "../../src/generated/prisma/enums";
 describe("tenant permissions", () => {
-  for (const role of ["OWNER", "ADMIN", "MEMBER", undefined] as const) {
+  for (const role of [
+    "OWNER",
+    "ADMIN",
+    "MEMBER",
+    "DISPLAY",
+    undefined,
+  ] as const) {
     for (const permission of [
+      "display:read",
       "read",
       "settings",
       "invite",
@@ -16,9 +23,11 @@ describe("tenant permissions", () => {
     ] as Permission[]) {
       const allowed =
         !!role &&
-        (permission === "read" ||
-          role === "OWNER" ||
-          (role === "ADMIN" && permission !== "members"));
+        (permission === "display:read" ||
+          (role !== "DISPLAY" &&
+            (permission === "read" ||
+              role === "OWNER" ||
+              (role === "ADMIN" && permission !== "members"))));
       it(`${role ?? "outsider"}: ${permission} ${allowed ? "allowed" : "denied"}`, () => {
         if (allowed)
           expect(() => authorize(role as Role, permission)).not.toThrow();

@@ -53,7 +53,7 @@ jobs:
           # Compile GET route modules before timed browser interactions. These
           # unauthenticated synthetic paths persist nothing; browser assertions
           # and mutation deadlines remain unchanged.
-          for path in /invitations /organizations/synthetic-warmup/clinic /organizations/synthetic-warmup/clinic/leads /organizations/synthetic-warmup/clinic/leads/synthetic-lead /organizations/synthetic-warmup/clinic/appointments /organizations/synthetic-warmup/clinic/follow-ups; do
+          for path in /invitations /organizations/synthetic-warmup/clinic /organizations/synthetic-warmup/clinic/leads /organizations/synthetic-warmup/clinic/leads/synthetic-lead /organizations/synthetic-warmup/clinic/appointments /organizations/synthetic-warmup/clinic/follow-ups /organizations/synthetic-warmup/clinic/reception /display/synthetic-warmup; do
             curl --fail --silent --output /dev/null "http://localhost:3000$path"
           done
           browser_path="$(command -v chromium || command -v google-chrome || true)"

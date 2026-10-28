@@ -62,3 +62,11 @@ PR #3 exists: https://github.com/bloomdigital369-hue/BBD-MASTER-ATMA-OS/pull/3 .
 - [ ] Durable reminder outbox and provider delivery only after consent, retry/idempotency and approvals are designed. No messages are sent in Phase 1.
 
 Exact commands, results, initial failures and remaining scope are in docs/CLINIC_PHASE1_VALIDATION.md. PR #3 is not merged; main and deployments remain outside this milestone.
+
+## Human-supervised development automation — 28 October 2026
+
+- [x] Audit/reuse the existing validation workflow, security guidance, source boundaries and test runners.
+- [x] Prepare task-branch CI hardening, PR evidence template and optional independent-review handoff without new dependencies or provider integrations.
+- [ ] Owner configures/validates repository rules, required hosted checks, Actions budget and independent review access. No cloud staging or production deployment is authorized.
+
+See docs/DEVELOPMENT_AUTOMATION.md and docs/AUTOMATION_VALIDATION.md for permissions, cost boundaries and exact local validation. Automated issue-to-agent scheduling is not implemented.

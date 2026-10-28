@@ -2,6 +2,8 @@ name: Foundation validation
 on:
   push:
   pull_request:
+  workflow_dispatch:
+  merge_group:
 permissions:
   contents: read
 concurrency:
@@ -10,9 +12,11 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6, MIT
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6, MIT
         with:
           node-version: "24"
@@ -45,6 +49,14 @@ jobs:
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
           curl --retry 30 --retry-connrefused --retry-delay 1 --fail --silent http://localhost:3000/api/health
           npm run test:http
-          BROWSER_SERVER_LOG=/tmp/bbd-next.log CHROMIUM_PATH="$(command -v chromium || command -v google-chrome)" npm run test:browser
+          browser_path="$(command -v chromium || command -v google-chrome || true)"
+          if [[ -z "$browser_path" ]]; then
+            echo "::error::Chromium/Chrome is required; browser tests were not run."
+            exit 1
+          fi
+          BROWSER_SERVER_LOG=/tmp/bbd-next.log CHROMIUM_PATH="$browser_path" npm run test:browser
       - name: Check production dependency advisories
         run: npm audit --omit=dev --audit-level=high
+      - name: Stop local test services (preserve volumes)
+        if: always()
+        run: docker compose -p bbd-atma-dev stop

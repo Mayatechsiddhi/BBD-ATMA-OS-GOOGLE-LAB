@@ -19,6 +19,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AppointmentSlots } from "@/components/appointment-slots";
 export default async function LeadDetail({
   params,
 }: {
@@ -76,19 +77,26 @@ export default async function LeadDetail({
                   Lost leads cannot receive new appointments.
                 </p>
               ) : (
-                <form
-                  action={bookClinicAppointment.bind(null, org)}
-                  className="space-y-4"
-                >
-                  <input type="hidden" name="leadId" value={leadId} />
-                  <AppointmentFields />
-                  <p className="text-xs text-muted-foreground">
-                    Use a consistent practitioner or room name. Overlaps for
-                    that resource or this lead are rejected. Maximum duration:
-                    eight hours.
-                  </p>
-                  <Button>Book appointment</Button>
-                </form>
+                <>
+                  <AppointmentSlots
+                    org={org}
+                    leadId={leadId}
+                    doctors={data.doctors}
+                  />
+                  <form
+                    action={bookClinicAppointment.bind(null, org)}
+                    className="space-y-4"
+                  >
+                    <input type="hidden" name="leadId" value={leadId} />
+                    <AppointmentFields />
+                    <p className="text-xs text-muted-foreground">
+                      Use a consistent practitioner or room name. Overlaps for
+                      that resource or this lead are rejected. Maximum duration:
+                      eight hours.
+                    </p>
+                    <Button>Book appointment</Button>
+                  </form>
+                </>
               )}
             </CardContent>
           </Card>

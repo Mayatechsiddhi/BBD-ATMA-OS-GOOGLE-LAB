@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { BrowserContext, Page } from "playwright-core";
 import { adminDb } from "./local-admin-db";
 import { clinicDate, localInput } from "../src/modules/clinic/time";
+import { slotsBrowser } from "./browser-slots";
 export async function clinicBrowser({
   owner,
   foreign,
@@ -226,6 +227,7 @@ export async function clinicBrowser({
     .getByRole("heading", { name: "Clinic dashboard", exact: true })
     .waitFor();
   assert.ok((await owner.textContent("main"))?.includes("Active leads"));
+  await slotsBrowser(owner, foreign, org, leadId, run);
   await member.goto(leadPath, { waitUntil: "commit" });
   await member
     .getByRole("heading", { name: `Synthetic clinic lead ${run}`, exact: true })

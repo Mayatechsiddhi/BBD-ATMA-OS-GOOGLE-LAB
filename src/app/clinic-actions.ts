@@ -8,6 +8,34 @@ import { AccessError } from "@/modules/organizations/policy";
 import * as clinic from "@/modules/clinic/service";
 import { ClinicError } from "@/modules/clinic/workflow";
 import { clinicDate, fromLocal } from "@/modules/clinic/time";
+import type { AvailabilityState } from "@/modules/clinic/availability-state";
+
+export async function findClinicSlots(
+  _previous: AvailabilityState,
+  data: FormData,
+): Promise<AvailabilityState> {
+  const { user } = await requireSession();
+  try {
+    return {
+      slots: await clinic.suggestAppointments(
+        user.id,
+        id(data, "organizationId"),
+        id(data, "leadId"),
+        {
+          doctorId: id(data, "doctorId"),
+          startsAt: fromLocal(text(data, "windowStart")),
+          endsAt: fromLocal(text(data, "windowEnd")),
+          duration: text(data, "duration"),
+        },
+      ),
+    };
+  } catch (e) {
+    if (e instanceof AccessError) return { error: "Access denied." };
+    if (e instanceof ClinicError) return { error: e.message };
+    // Do not echo selectors, patient input or database errors.
+    return { error: "Choose a valid doctor, window and duration." };
+  }
+}
 const text = (data: FormData, name: string) => z.string().parse(data.get(name));
 const id = (data: FormData, name: string) =>
   z

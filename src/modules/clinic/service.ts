@@ -17,6 +17,7 @@ import {
   leadTransitions,
 } from "./workflow";
 import { clinicDate, dayRange } from "./time";
+import { availabilityInput, freeSlots } from "./availability";
 
 async function leadFor(
   tx: Prisma.TransactionClient,
@@ -127,6 +128,12 @@ export async function getLead(
 ) {
   return withOrganization(userId, organizationId, "read", async (tx) => ({
     lead: await leadFor(tx, organizationId, id),
+    doctors: await tx.doctor.findMany({
+      where: { organizationId },
+      select: { id: true, name: true, room: true },
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+      take: 50,
+    }),
     appointments: await tx.appointment.findMany({
       where: { organizationId, leadId: id },
       orderBy: [{ startsAt: "desc" }, { id: "asc" }],
@@ -161,6 +168,46 @@ async function available(
     throw new ClinicError(
       "That lead or practitioner already has an overlapping appointment.",
     );
+}
+export async function suggestAppointments(
+  userId: string,
+  organizationId: string,
+  leadId: string,
+  input: unknown,
+) {
+  const query = availabilityInput.parse(input);
+  return withOrganization(userId, organizationId, "read", async (tx) => {
+    const now = new Date();
+    if (
+      query.startsAt < dayRange(clinicDate(now)).start ||
+      query.endsAt.getTime() > now.getTime() + 30 * 86400000
+    )
+      throw new ClinicError("Search from today through the next 30 days.");
+    const lead = await leadFor(tx, organizationId, leadId);
+    if (lead.status === "LOST")
+      throw new ClinicError("A lost lead cannot receive new appointments.");
+    const doctor = await tx.doctor.findUnique({
+      where: { organizationId_id: { organizationId, id: query.doctorId } },
+      select: { resource: true },
+    });
+    if (!doctor) throw new AccessError();
+    // Never reuse the capped agenda projection: every overlapping active booking matters.
+    const busy = await tx.appointment.findMany({
+      where: {
+        organizationId,
+        status: { in: activeAppointments },
+        startsAt: { lt: query.endsAt },
+        endsAt: { gt: query.startsAt },
+        OR: [{ resource: doctor.resource }, { leadId }],
+      },
+      select: { startsAt: true, endsAt: true },
+    });
+    return freeSlots(query, query.duration, busy, now).map((slot) => ({
+      startsAt: slot.startsAt.toISOString(),
+      endsAt: slot.endsAt.toISOString(),
+      resource: doctor.resource,
+    }));
+  });
 }
 export async function bookAppointment(
   userId: string,

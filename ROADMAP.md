@@ -1,5 +1,9 @@
 # Persistent implementation roadmap
 
+## Appointment slot suggestions — feat/clinic-slot-suggestions
+
+The existing booking card gains authenticated, tenant-scoped conflict-free slot suggestions using Doctor resource labels and staff-selected windows, without new dependencies or migrations. Existing booking actions recheck permissions and conflicts under the organization lock; suggestions do not reserve a time or establish doctor working hours. See docs/SLOT_SUGGESTIONS.md and docs/SLOT_SUGGESTIONS_VALIDATION.md for behavior, actual validation and remaining review gates. Independent human security review remains required; no merge or deployment is authorized.
+
 Commercial client-delivery target supplied in Issue #1: **26 November 2026**. This foundation milestone does not establish complete commercial delivery readiness.
 
 ## Milestone 1 — identity and organization foundation

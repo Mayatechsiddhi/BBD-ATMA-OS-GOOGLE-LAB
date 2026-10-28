@@ -95,7 +95,7 @@ try {
 for (const args of [
   ["scripts/prisma-wasm.mjs", "migrate"],
   ["scripts/prisma-wasm.mjs", "migrate"],
-  ["scripts/configure-local-runtime.mjs"],
+  ["--import", "tsx", "scripts/configure-local-runtime.mjs"],
   ["scripts/test-integration.mjs"],
 ]) {
   const result = spawnSync("node", args, { stdio: "inherit", env });

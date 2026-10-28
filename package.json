@@ -26,7 +26,9 @@
     "prestart": "tsx --env-file-if-exists=.env scripts/check-env.ts production",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "db:runtime:local": "node scripts/configure-local-runtime.mjs",
+    "db:runtime:audit": "node --import tsx scripts/audit-local-runtime.mjs",
+    "db:runtime:local": "node --import tsx scripts/configure-local-runtime.mjs",
+    "test:privileges": "node scripts/test-runtime-privileges.mjs",
     "test:migrations": "node scripts/verify-rls-migrations.mjs",
     "test:pooler": "node scripts/test-pooler.mjs",
     "test:browser": "tsx --env-file=.env scripts/browser-invitations.ts"

@@ -42,8 +42,16 @@ if (!runtime)
   throw new Error(
     "TEST_RUNTIME_DATABASE_URL is required; provision the local runtime role first",
   );
-const grants = spawnSync("node", ["scripts/configure-local-runtime.mjs"], {
-  stdio: "inherit",
-  env: { ...process.env, DATABASE_URL: source, RUNTIME_DATABASE_URL: runtime },
-});
+const grants = spawnSync(
+  "node",
+  ["--import", "tsx", "scripts/configure-local-runtime.mjs"],
+  {
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      DATABASE_URL: source,
+      RUNTIME_DATABASE_URL: runtime,
+    },
+  },
+);
 process.exit(grants.status ?? 1);

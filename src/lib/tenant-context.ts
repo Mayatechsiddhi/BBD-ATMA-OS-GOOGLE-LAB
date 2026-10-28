@@ -1,5 +1,6 @@
 import { Prisma, type Organization } from "@/generated/prisma/client";
 import { db } from "./db";
+import { runtimePrivilegeAuditSQL } from "./runtime-privileges";
 export async function assertRuntimeDatabase(tx: Prisma.TransactionClient = db) {
   const [role] = await tx.$queryRaw<
     { unsafe: boolean; protectedTables: number; transactionContext: boolean }[]
@@ -30,6 +31,10 @@ export async function assertRuntimeDatabase(tx: Prisma.TransactionClient = db) {
     !role.transactionContext
   )
     throw new Error("Unsafe runtime database role or missing tenant RLS");
+  const drift = await tx.$queryRaw<unknown[]>(
+    Prisma.raw(runtimePrivilegeAuditSQL("session_user")),
+  );
+  if (drift.length) throw new Error("Unsafe runtime database privileges");
 }
 export async function setOrganizationContext(
   tx: Prisma.TransactionClient,

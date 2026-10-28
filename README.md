@@ -40,6 +40,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run db:test:prepare
+npm run test:privileges
 npm run test:integration
 npm run test:migrations
 npm run test:pooler
@@ -81,3 +82,5 @@ The repository initially contained only its product description README. No exist
 Open **Clinic CRM** in an organization workspace. Owners/admins can create phone-first leads, update their pipeline, book or reschedule appointments from a lead record, and track due follow-ups. Members have read-only access. The clinic dashboard uses real scoped database counts. All displayed/entered times are IST; no sample records are seeded into the application.
 
 Apply the additive clinic migration and runtime grants before starting the updated app (`npm run db:migrate:wasm`, then `npm run db:runtime:local` for the documented local setup). Generate Prisma first after checkout. Existing migrations and data are preserved. Run the standard validation commands, including test:migrations, test:pooler, test:http and test:browser; the shared HTTP/browser scripts now cover clinic flows too. Details: [clinic behavior](docs/CLINIC_CRM.md) and [validation evidence](docs/CLINIC_PHASE1_VALIDATION.md).
+
+Runtime privilege drift: `npm run db:runtime:audit` performs a read-only local metadata audit. Provisioning now rejects excess privileges without revocation; see [the privilege contract and reviewed remediation process](docs/TENANT_ISOLATION.md#pr-4--privilege-drift-enforcement). `test:privileges` needs local administrative fixture access and creates/removes only uniquely named synthetic test databases/roles. Independent human security review remains required before merge.

@@ -70,3 +70,10 @@ Exact commands, results, initial failures and remaining scope are in docs/CLINIC
 - [ ] Owner configures/validates repository rules, required hosted checks, Actions budget and independent review access. No cloud staging or production deployment is authorized.
 
 See docs/DEVELOPMENT_AUTOMATION.md and docs/AUTOMATION_VALIDATION.md for permissions, cost boundaries and exact local validation. Automated issue-to-agent scheduling is not implemented.
+
+## PR #4 security follow-up
+
+- [x] Replace permissive runtime grant accumulation with a shared effective-privilege audit and fail-closed, transactional allowlist provisioning; preserve existing roles and drift for explicit review.
+- [x] Add isolated PostgreSQL privilege-drift regressions and an explicit CI check. See docs/PR4_PRIVILEGE_DRIFT_VALIDATION.md for actual evidence and limits.
+- [ ] Paginate appointment agendas and follow-ups beyond the current 100-record limit, preserving deterministic ordering, filters and tenant isolation. Add greater-than-100-record tests proving every permitted record remains reachable. Lead-detail histories also need pagination beyond 50 records. This is a future clinic development task, not included in the security fix.
+- [ ] Independent human review of SQL/privilege enforcement, RLS, authentication and clinic migration remains required before merge. Production/cloud staging approval gates are unchanged.

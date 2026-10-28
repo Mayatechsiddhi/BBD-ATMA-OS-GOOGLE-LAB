@@ -30,3 +30,5 @@ For local development, preserve .env and volumes, generate Prisma, apply migrati
 ## Remaining product and release work
 
 Independent review, staging migration/grant checks, actual provider TLS/pooling, production SMTP, backup/restore and existing auth/security gates remain required. Phase 1 is not a production readiness signoff. A practitioner/room directory, clinic-specific hours/timezones, granular reception roles, consent and retention workflows, recurring appointments, reminder outbox, billing and patient self-service remain future work. No calendar provider, external communication or paid infrastructure is connected.
+
+Tracked follow-up: paginate agendas/follow-ups past 100 and lead-detail history past 50. Acceptance requires deterministic, tenant-scoped navigation and regression fixtures exceeding those limits; no records beyond the current caps should be represented as already browsable. See ROADMAP.md.

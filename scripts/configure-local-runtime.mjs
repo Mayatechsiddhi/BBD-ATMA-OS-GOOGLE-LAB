@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import { randomBytes } from "node:crypto";
 import pg from "pg";
+import { enforceRuntimePrivileges } from "./runtime-privileges.ts";
 if (fs.existsSync(".env")) process.loadEnvFile(".env");
 const source = process.env.DATABASE_URL;
 if (!source) throw new Error("Local migration DATABASE_URL required");
@@ -46,34 +47,7 @@ try {
       await probe.end();
     }
   }
-  const rls = await client.query(
-    "SELECT to_regnamespace('bbd_private') IS NOT NULL AS ready",
-  );
-  if (rls.rows[0].ready) {
-    await client.query(`GRANT USAGE ON SCHEMA public,bbd_private TO bbd_runtime;
-   GRANT SELECT,INSERT,UPDATE ON public."User" TO bbd_runtime;
-   GRANT SELECT,INSERT,UPDATE,DELETE ON public."Session",public."Account",public."Verification",public."RateLimit" TO bbd_runtime;
-   GRANT SELECT ON public."Organization" TO bbd_runtime;
-   GRANT UPDATE(name,"updatedAt") ON public."Organization" TO bbd_runtime;
-   REVOKE UPDATE ON public."Membership" FROM bbd_runtime;
-   GRANT SELECT,INSERT,DELETE ON public."Membership" TO bbd_runtime;
-   GRANT UPDATE(role) ON public."Membership" TO bbd_runtime;
-   GRANT SELECT,INSERT,DELETE ON public."Invitation" TO bbd_runtime;
-   GRANT UPDATE("acceptedAt") ON public."Invitation" TO bbd_runtime;
-   GRANT SELECT,INSERT ON public."AuditEvent" TO bbd_runtime;
-   GRANT SELECT,INSERT ON public."Contact" TO bbd_runtime;
-   GRANT UPDATE(name,email,company,status,"updatedAt") ON public."Contact" TO bbd_runtime;
-   GRANT EXECUTE ON FUNCTION bbd_private.actor_id(),bbd_private.organization_id(),bbd_private.membership_role(text),bbd_private.invitation_recipient(text,text),bbd_private.create_organization(text,text,text) TO bbd_runtime;`);
-  }
-  const clinic = await client.query(
-    `SELECT to_regclass('public."ClinicLead"') IS NOT NULL AS ready`,
-  );
-  if (clinic.rows[0].ready) {
-    await client.query(`GRANT SELECT,INSERT ON public."ClinicLead",public."Appointment",public."FollowUp" TO bbd_runtime;
-      GRANT UPDATE(name,phone,email,source,status,"updatedAt") ON public."ClinicLead" TO bbd_runtime;
-      GRANT UPDATE(resource,"startsAt","endsAt",status,"updatedAt") ON public."Appointment" TO bbd_runtime;
-      GRANT UPDATE(title,"dueAt",status,"completedAt","updatedAt") ON public."FollowUp" TO bbd_runtime;`);
-  }
+  const ready = await enforceRuntimePrivileges(client, role);
   if (!process.env.RUNTIME_DATABASE_URL)
     fs.appendFileSync(
       ".env",
@@ -95,7 +69,7 @@ try {
     );
   }
   console.log(
-    rls.rows[0].ready
+    ready
       ? "Local runtime role verified and scoped privileges granted."
       : "Local runtime role prepared. Apply migration, then rerun for grants.",
   );

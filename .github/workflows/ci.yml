@@ -51,11 +51,16 @@ jobs:
           curl --retry 30 --retry-connrefused --retry-delay 1 --fail --silent http://localhost:3000/api/health
           npm run test:http
           # Compile GET route modules before timed browser interactions. These
-          # unauthenticated synthetic paths persist nothing; browser assertions
-          # and mutation deadlines remain unchanged.
-          for path in /invitations /organizations/synthetic-warmup/clinic /organizations/synthetic-warmup/clinic/leads /organizations/synthetic-warmup/clinic/leads/synthetic-lead /organizations/synthetic-warmup/clinic/appointments /organizations/synthetic-warmup/clinic/follow-ups /organizations/synthetic-warmup/clinic/reception /display/synthetic-warmup; do
+          # unauthenticated synthetic paths persist nothing. Include recovery
+          # forms first loaded by the no-JavaScript checks. Assertions and all
+          # mutation/navigation deadlines remain unchanged.
+          for path in /sign-in /sign-up /forgot-password "/reset-password?token=fixture-only" /invitations /organizations/synthetic-warmup/clinic /organizations/synthetic-warmup/clinic/leads /organizations/synthetic-warmup/clinic/leads/synthetic-lead /organizations/synthetic-warmup/clinic/appointments /organizations/synthetic-warmup/clinic/follow-ups /organizations/synthetic-warmup/clinic/reception /display/synthetic-warmup; do
             curl --fail --silent --output /dev/null "http://localhost:3000$path"
           done
+          # Compile the SSE handler without opening a stream or granting access.
+          # Anonymous callers must still be rejected before any tenant lookup.
+          calling_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' 'http://localhost:3000/api/organizations/synthetic-warmup/calling?view=reception')"
+          test "$calling_status" = 401
           browser_path="$(command -v chromium || command -v google-chrome || true)"
           if [[ -z "$browser_path" ]]; then
             echo "::error::Chromium/Chrome is required; browser tests were not run."

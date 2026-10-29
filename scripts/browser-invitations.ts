@@ -6,6 +6,7 @@ import { adminDb } from "./local-admin-db";
 import { callingBrowser } from "./browser-calling";
 import { clinicBrowser } from "./browser-clinic";
 import { opportunitiesBrowser } from "./browser-opportunities";
+import { browserClientIP, verifyAuthRateLimits } from "./browser-client-ip";
 import { db } from "../src/lib/db";
 import { createOrganization } from "../src/modules/organizations/service";
 
@@ -25,14 +26,18 @@ const sensitive = [password];
 const serverLog = process.env.BROWSER_SERVER_LOG;
 console.log(`Browser: ${browser.version()}`);
 async function account(label: string) {
-  const context = await browser.newContext({ baseURL: base });
+  const context = await browser.newContext({
+    baseURL: base,
+    extraHTTPHeaders: {
+      "x-forwarded-for": browserClientIP(run, contexts.length + 1),
+    },
+  });
   context.setDefaultTimeout(15000);
   contexts.push(context);
   const email = `browser-${label}-${run}@example.com`;
   const signup = await context.request.post("/api/auth/sign-up/email", {
     headers: {
       Origin: base,
-      "x-forwarded-for": `2001:db8:${run.slice(0, 4)}::${contexts.length}`,
     },
     data: {
       name: `Browser ${label}`,
@@ -68,7 +73,18 @@ async function account(label: string) {
   await page.goto("/sign-in");
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
+  const signedIn = page.waitForResponse(
+    (r) =>
+      r.request().method() === "POST" &&
+      new URL(r.url()).pathname === "/api/auth/sign-in/email",
+  );
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  const signInStatus = (await signedIn).status();
+  assert.equal(
+    signInStatus,
+    200,
+    `Real UI sign-in must succeed for synthetic ${label} (HTTP ${signInStatus})`,
+  );
   await page.waitForURL("**/organizations", { waitUntil: "commit" });
   assert.equal(
     new URL(page.url()).search,
@@ -108,6 +124,7 @@ try {
     // Keep real authentication fixture setup together, before navigation/action
     // phases compile additional routes. All auth assertions/deadlines remain.
     displayAccount = await account("calling-display");
+  await verifyAuthRateLimits(owner.context, base, run);
   const org = await createOrganization(owner.userId, {
     name: "Browser invitation A",
     slug: `browser-a-${run}`,
@@ -365,6 +382,16 @@ try {
     `Browser invitation validation failed (${error instanceof Error ? error.name : "unknown"}${error instanceof Error && error.message.startsWith("Invitation response did not finish") ? ": response-stream-timeout" : ""}); request details suppressed.`,
   );
   if (error instanceof Error) {
+    if (error.name === "TimeoutError")
+      console.error(
+        "Browser timeout phase",
+        JSON.stringify({
+          clickCompleted: error.message.includes("click action done"),
+          waitingForNavigation: error.message.includes(
+            "waiting for scheduled navigations",
+          ),
+        }),
+      );
     const scenarioLocation = error.stack?.match(
       /browser-(?:clinic|calling|invitations|slots|schedules|opportunities)\.ts:\d+:\d+/,
     )?.[0];

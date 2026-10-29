@@ -18,6 +18,8 @@ import {
 } from "./workflow";
 import { clinicDate, dayRange } from "./time";
 import { availabilityInput, freeSlots } from "./availability";
+import { enforceDoctorSchedule } from "./schedule-service";
+import { readSchedule, scheduleAllows } from "./schedule";
 
 async function leadFor(
   tx: Prisma.TransactionClient,
@@ -128,12 +130,19 @@ export async function getLead(
 ) {
   return withOrganization(userId, organizationId, "read", async (tx) => ({
     lead: await leadFor(tx, organizationId, id),
-    doctors: await tx.doctor.findMany({
-      where: { organizationId },
-      select: { id: true, name: true, room: true },
-      orderBy: [{ name: "asc" }, { id: "asc" }],
-      take: 50,
-    }),
+    doctors: await tx.doctor
+      .findMany({
+        where: { organizationId },
+        select: { id: true, name: true, room: true, schedule: true },
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        take: 50,
+      })
+      .then((doctors) =>
+        doctors.map(({ schedule, ...d }) => ({
+          ...d,
+          duration: readSchedule(schedule)?.duration ?? null,
+        })),
+      ),
     appointments: await tx.appointment.findMany({
       where: { organizationId, leadId: id },
       orderBy: [{ startsAt: "desc" }, { id: "asc" }],
@@ -153,6 +162,7 @@ async function available(
   data: { resource: string; startsAt: Date; endsAt: Date },
   except?: string,
 ) {
+  await enforceDoctorSchedule(tx, organizationId, data.resource, data);
   const collision = await tx.appointment.findFirst({
     where: {
       organizationId,
@@ -188,7 +198,7 @@ export async function suggestAppointments(
       throw new ClinicError("A lost lead cannot receive new appointments.");
     const doctor = await tx.doctor.findUnique({
       where: { organizationId_id: { organizationId, id: query.doctorId } },
-      select: { resource: true },
+      select: { resource: true, schedule: true },
     });
     if (!doctor) throw new AccessError();
     // Never reuse the capped agenda projection: every overlapping active booking matters.
@@ -202,7 +212,17 @@ export async function suggestAppointments(
       },
       select: { startsAt: true, endsAt: true },
     });
-    return freeSlots(query, query.duration, busy, now).map((slot) => ({
+    const policy = readSchedule(doctor.schedule);
+    const duration = policy?.duration ?? query.duration;
+    // Evaluate all bounded grid candidates before limiting: breaks/closed hours
+    // must not hide later valid slots behind the first five raw candidates.
+    return freeSlots(
+      query,
+      duration,
+      busy,
+      now,
+      policy ? (slot) => scheduleAllows(policy, slot) : undefined,
+    ).map((slot) => ({
       startsAt: slot.startsAt.toISOString(),
       endsAt: slot.endsAt.toISOString(),
       resource: doctor.resource,

@@ -8,7 +8,14 @@ export const runtimeTables: Record<
   Patient: { privileges: ["SELECT", "INSERT"] },
   Doctor: {
     privileges: ["SELECT", "INSERT"],
-    update: ["name", "room", "revision", "updatedAt"],
+    update: [
+      "name",
+      "room",
+      "revision",
+      "updatedAt",
+      "schedule",
+      "scheduleVersion",
+    ],
   },
   QueueToken: {
     privileges: ["SELECT", "INSERT"],

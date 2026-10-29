@@ -233,6 +233,8 @@ model Doctor {
   room String
   resource String
   revision Int @default(0)
+  schedule Json?
+  scheduleVersion Int @default(0)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)

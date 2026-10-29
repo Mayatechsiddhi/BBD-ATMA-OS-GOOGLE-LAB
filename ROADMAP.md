@@ -1,5 +1,11 @@
 # Persistent implementation roadmap
 
+## Doctor working hours — feat/clinic-doctor-schedules
+
+Implemented weekly doctor hours, optional daily break, full-day leave and appointment duration with versioned/audited saves on the existing tenant-protected Doctor model. Shared rules govern slot suggestions, booking and rescheduling; conflicting active appointments are preserved. Exact validation and limits are in docs/DOCTOR_SCHEDULES.md. Independent human review and deployment approval remain required.
+
+After review, implementation priority is CRM opportunities → consent-aware appointment reminders → WhatsApp booking → voice receptionist. External adapters require approved provider/data/spending controls before activation; no unlicensed workflow source is copied.
+
 ## Appointment slot suggestions — feat/clinic-slot-suggestions
 
 The existing booking card gains authenticated, tenant-scoped conflict-free slot suggestions using Doctor resource labels and staff-selected windows, without new dependencies or migrations. Existing booking actions recheck permissions and conflicts under the organization lock; suggestions do not reserve a time or establish doctor working hours. See docs/SLOT_SUGGESTIONS.md and docs/SLOT_SUGGESTIONS_VALIDATION.md for behavior, actual validation and remaining review gates. Independent human security review remains required; no merge or deployment is authorized.

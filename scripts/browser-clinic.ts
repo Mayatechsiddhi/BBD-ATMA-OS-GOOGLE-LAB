@@ -17,6 +17,20 @@ export async function clinicBrowser({
   run: string;
 }) {
   const base = `/organizations/${org}/clinic`;
+  // Compile the actual authenticated pages before timing mutations/negative HTTP
+  // requests. Unauthenticated synthetic warm-up only compiled redirects.
+  for (const [path, heading] of [
+    ["", "Clinic dashboard"],
+    ["/appointments", "Appointment agenda"],
+    ["/follow-ups", "Follow-up tracker"],
+    ["/schedules", "Doctor schedules"],
+    ["/reception", "Reception & patient queues"],
+  ]) {
+    await owner.goto(base + path, { waitUntil: "commit", timeout: 60000 });
+    await owner
+      .getByRole("heading", { name: heading, exact: true })
+      .waitFor({ timeout: 60000 });
+  }
   await owner.goto(base + "/leads", { waitUntil: "commit" });
   await owner
     .getByLabel("Lead name", { exact: true })

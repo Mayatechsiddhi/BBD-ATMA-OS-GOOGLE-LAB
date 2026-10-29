@@ -13,7 +13,12 @@ export function AppointmentSlots({
 }: {
   org: string;
   leadId: string;
-  doctors: { id: string; name: string; room: string }[];
+  doctors: {
+    id: string;
+    name: string;
+    room: string;
+    duration?: number | null;
+  }[];
 }) {
   const [state, action, pending] = useActionState(findClinicSlots, {});
   const hydrated = useHydrated();
@@ -24,6 +29,7 @@ export function AppointmentSlots({
   const [windowEnd, setWindowEnd] = useState("");
   const [duration, setDuration] = useState("30");
   const [edited, setEdited] = useState(false);
+  const configuredDuration = doctors.find((d) => d.id === doctorId)?.duration;
   return (
     <section
       aria-label="Appointment suggestions"
@@ -31,10 +37,10 @@ export function AppointmentSlots({
     >
       <h3 className="font-medium">Find appointment slots</h3>
       <p className="text-sm text-muted-foreground">
-        Select a search window agreed with the doctor. Working hours and rosters
-        are not configured. Suggestions exclude existing doctor and patient
-        conflicts; they are not reservations. Availability is checked again when
-        booking.
+        Saved doctor hours, breaks, leave and duration apply. For an
+        unconfigured doctor, choose a window agreed with them. Suggestions
+        exclude doctor and patient conflicts; they are not reservations.
+        Availability is checked again when booking.
       </p>
       {!doctors.length ? (
         <p>
@@ -64,6 +70,9 @@ export function AppointmentSlots({
                 {doctors.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name} · {d.room}
+                    {d.duration
+                      ? ` · ${d.duration} minutes`
+                      : " · hours not configured"}
                   </option>
                 ))}
               </select>
@@ -96,7 +105,8 @@ export function AppointmentSlots({
                 min={15}
                 max={480}
                 step={15}
-                value={duration}
+                value={configuredDuration ?? duration}
+                readOnly={!!configuredDuration}
                 onChange={(event) => setDuration(event.target.value)}
                 required
               />

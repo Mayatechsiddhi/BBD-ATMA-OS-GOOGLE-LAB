@@ -354,7 +354,7 @@ try {
   );
   if (error instanceof Error) {
     const scenarioLocation = error.stack?.match(
-      /browser-(?:clinic|calling|invitations|slots)\.ts:\d+:\d+/,
+      /browser-(?:clinic|calling|invitations|slots|schedules)\.ts:\d+:\d+/,
     )?.[0];
     if (scenarioLocation)
       console.error(`Browser scenario location: ${scenarioLocation}`);

@@ -1,5 +1,7 @@
 # BBD Master ATMA OS architecture
 
+Doctor scheduling extends the existing clinic/calling boundary with validated JSON and optimistic versioning on Doctor, reusing its FORCE RLS and transaction/audit controls. Shared hours/break/leave/duration rules constrain slot suggestions and new/rescheduled doctor-resource bookings. Hours/leave edits preserve active appointments by rejecting conflicts; no background scheduler or external service is added. See docs/DOCTOR_SCHEDULES.md for legacy-null behavior and exact limits.
+
 ## Foundation milestone
 
 A Next.js App Router application using React, TypeScript, PostgreSQL, Prisma's PostgreSQL driver adapter, Better Auth, Tailwind CSS, and locally owned shadcn-style UI primitives using Radix Slot and class-variance-authority. No prior application source existed. No business metrics or AI operations are fabricated.

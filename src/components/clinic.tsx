@@ -37,6 +37,7 @@ export function ClinicHeader({
           ["", "Dashboard"],
           ["/leads", "Leads"],
           ["/appointments", "Appointments"],
+          ["/schedules", "Doctor schedules"],
           ["/follow-ups", "Follow-ups"],
           ["/reception", "Reception & calling"],
         ].map(([path, label]) => (

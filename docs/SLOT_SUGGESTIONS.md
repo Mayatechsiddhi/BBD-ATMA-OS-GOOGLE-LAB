@@ -1,5 +1,7 @@
 # Clinic appointment slot suggestions
 
+The doctor-schedules extension now applies configured weekly hours, breaks, leave and duration to this flow. See DOCTOR_SCHEDULES.md; the initial milestone's staff-selected-window fallback below now applies only to unconfigured doctors.
+
 Branch: feat/clinic-slot-suggestions. Development base: feat/clinic-doctor-calling at da8ddb4e07f023a68469f1419c85e920cbc736f8. This feature does not change main, PR #4, migrations or Doctor Calling Display behavior. Independent human security review remains a release requirement.
 
 ## Behavior and reuse

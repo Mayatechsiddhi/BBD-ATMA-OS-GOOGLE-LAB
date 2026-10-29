@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import type { Page, BrowserContext } from "playwright-core";
 import { adminDb } from "./local-admin-db";
 import { clinicDate } from "../src/modules/clinic/time";
+import { scheduleBrowser } from "./browser-schedules";
 
 export async function slotsBrowser(
   owner: Page,
@@ -175,4 +176,5 @@ export async function slotsBrowser(
   console.log(
     "PASS slot suggestions browser invalid/empty windows, cross-tenant action denial, stale conflict rejection, explicit booking and duplicate POST rejection",
   );
+  await scheduleBrowser(owner, foreign, org, doctor.id, leadId, day);
 }

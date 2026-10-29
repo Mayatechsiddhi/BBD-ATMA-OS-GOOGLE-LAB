@@ -24,6 +24,7 @@ export function freeSlots(
   duration: number,
   busy: Interval[],
   now: Date,
+  allowed: (slot: Interval) => boolean = () => true,
 ): Interval[] {
   const step = 15 * 60000;
   const slots: Interval[] = [];
@@ -35,6 +36,7 @@ export function freeSlots(
       endsAt: new Date(start + duration * 60000),
     };
     if (
+      allowed(candidate) &&
       !busy.some(
         (b) => b.startsAt < candidate.endsAt && b.endsAt > candidate.startsAt,
       )

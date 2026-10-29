@@ -1,0 +1,36 @@
+# Doctor scheduling implementation
+
+Branch: feat/clinic-doctor-schedules, based on feat/clinic-slot-suggestions at 5fee593d487feae4f2f375f05e15bffc7259684d. No merge, deployment, external integration or third-party source import is included.
+
+## Delivered behavior
+
+The existing Clinic navigation now opens Doctor schedules. OWNER/ADMIN can save weekly hours (one interval per weekday), an optional daily break, fixed appointment duration and full-day leave; MEMBER can read, DISPLAY/nonmembers cannot use the schedule service or page. Unchecked weekdays are closed. Times use the existing Asia/Kolkata helpers and 15-minute grid; new appointment duration is 15–480 minutes in 15-minute increments. Overnight shifts, multiple daily breaks, partial-day leave and rotating/effective-dated rosters are outside this slice.
+
+Configuration is a validated bounded JSON object and a separate optimistic version on the existing tenant-owned Doctor row, protected by its existing FORCE RLS and immutable tenant/resource identity. No separate scheduling framework or table is added. The additive ninth migration adds nullable schedule and nonnegative scheduleVersion; no original migration/data is rewritten. Runtime UPDATE grants add only those two columns to the existing reviewed allowlist. The doctor display projection does not include schedule or leave data; leave contains dates only, no reasons/patient details. Doctor metadata remains covered by the existing Doctor RLS trust boundary, which permits DISPLAY row reads at the database layer; the application display exposes only its explicit projection, not the schedule.
+
+NULL deliberately preserves prior manual/resource booking until staff explicitly activate a doctor's hours. Existing generic resources without a registered Doctor are unchanged. New/rescheduled bookings for a configured exact normalized Doctor resource must fit an open weekday, avoid break/leave, start on the grid and use the saved duration. Slot suggestions use that same policy and saved duration, including when a caller submits another duration. Filtering happens before the five-result limit so later valid times remain reachable. Prior suggestion state/hidden fields grant no authority; the existing booking service rechecks current policy and collisions inside its organization transaction.
+
+Schedule writes acquire the same organization advisory lock as booking, freshly authorize the actor and check the submitted version. Concurrent/stale form saves cannot silently overwrite each other. Hours/leave changes that would invalidate any active, not-yet-ended appointment are rejected with no data loss. Existing durations are grandfathered when duration changes; future new/rescheduled bookings use the new value. Schedule, version/revision and audit commit atomically. Removing leave is an audited versioned mutation. Staff must reload after another editor's change; no automatic cancellation, moving of appointments or destructive schedule reset is offered.
+
+## Validation and publication evidence
+
+Local test database: bbd_schedule_validation_test, synthetic fixtures and local Mailpit only. All original migration files remain unchanged. Logs are outside Git under /tmp/bbd-schedule-validation.
+
+- Unit: 109 passed; clinic/schedule boundary, break, leave, closed day, duration/grid, malformed configuration and legacy-null tests.
+- Privileges: 22 passed with fresh isolated role/database fixtures.
+- PostgreSQL integration: 66 passed directly; 66 with the independently authenticated non-superuser migration owner; 66 through actual transaction-mode PgBouncer.
+- New integration cases cover foreign tenant/doctor selectors, member/display denial, raw RLS mutation denial, concurrent versioned saves with one audit, leave restoration, direct booking/reschedule policy checks, conflicting-edit preservation and booking-versus-leave serialization.
+- Migration verification: new ninth migration applied then repeated without pending changes under the restricted owner; eleven tenant tables and existing private function ownership verified. The restricted-owner test reused its dedicated existing test database; do not call it a fresh empty-database bootstrap.
+- Format, lint, typecheck, build, unchanged 819-package license inventory and full/production advisory scans passed (zero reported vulnerabilities at this run's snapshot).
+- HTTP passed: real auth/verification and persisted organization/CRM/clinic Server Actions, tenant and CSRF denial. No paid delivery was invoked.
+- Chromium evidence is split: the final main browser attempt passed 12 groups, including all new schedule/slot cases, invitations and clinic workflows, then hit a 20-second cold reception navigation timeout before the calling cases. A separate focused run invoked the unchanged exported callingBrowser with real synthetic signup/email verification/sign-in: calling registration, queues, cross-screen SSE call/recall/skip/complete, patient privacy, foreign-stream denial and revoked-display clearing passed, followed by its password/verification URL/private patient log-exclusion check. That focused run exited 0. This is NOT a claim that one uninterrupted full browser run passed; full hosted CI remains a review gate.
+
+Initial formatting/typecheck caught a missing closing brace in the new schedule service; it was corrected and later checks passed without disabling checks. No dependency or license changes occurred. The six supplied workflow JSONs were conceptual reference only; their unverified code/prompts were not incorporated. Existing BBD components, scheduling services and time helpers were reused.
+
+## Release gates
+
+Independent human security review of the final feature and unmerged foundation/calling/slot ancestry remains required. PR #4 must remain Draft per owner instruction; no PR state is changed here. Live PR #4/#5 metadata could not be read: GitHub API returned Forbidden; an elevated metadata retry remained blocked/pending and was interrupted. Git transport still verifies the parent branch. No hosted CI pass is inferred from local results.
+
+An approved deployment must coordinate the additive migration, explicitly reviewed runtime column grants and application artifact. The older strict allowlist rejects the new grants, so rollback/cutover must be rehearsed rather than blindly revoking privileges or reversing data. This work only exercises isolated local databases; production/provider TLS/pooler, backup/restore, browser accessibility/load and remaining identity/device/ingress controls still require review. No staging/production or paid API activation is authorized.
+
+Earlier browser attempts also hit the existing manual booking click and negative page GET deadlines. Authenticated clinic/reception pages now warm before timed assertions (60-second setup allowance); action/negative-request deadlines and assertions remain unchanged. The focused run completed the remaining checks without rerunning passed database or clinic flows. Logs: browser-warmed.log records the 12 passed groups and reception timeout; browser-calling-focused.log records the remaining calling/log checks. Final formatting, lint and typecheck passed after the test warm-up adjustment. A 22-file changed-source scan found no strong secret signatures/local secret values; this is not an exhaustive certification.

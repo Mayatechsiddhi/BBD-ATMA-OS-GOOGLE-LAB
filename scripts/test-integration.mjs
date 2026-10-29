@@ -23,7 +23,13 @@ if (
   );
 const result = spawnSync(
   "npx",
-  ["vitest", "run", "--config", "vitest.integration.config.ts"],
+  [
+    "vitest",
+    "run",
+    "--config",
+    "vitest.integration.config.ts",
+    ...process.argv.slice(2),
+  ],
   {
     stdio: "inherit",
     env: {

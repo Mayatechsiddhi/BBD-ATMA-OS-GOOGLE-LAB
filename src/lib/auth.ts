@@ -3,6 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
 import { sendAccountEmail } from "./mail";
+import { authIPHeaders } from "./auth-proxy";
 export const auth = betterAuth({
   user: { deleteUser: { enabled: false } },
   appName: "BBD Master ATMA OS",
@@ -29,6 +30,7 @@ export const auth = betterAuth({
   },
   rateLimit: { enabled: true, storage: "database", window: 60, max: 30 },
   advanced: {
+    ipAddress: { ipAddressHeaders: authIPHeaders() },
     disableCSRFCheck: false,
     disableOriginCheck: false,
     useSecureCookies: process.env.NODE_ENV === "production",

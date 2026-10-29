@@ -1,5 +1,9 @@
 # Persistent implementation roadmap
 
+## Audit follow-up — security/audit-medium-hardening
+
+Targeted shared-read/exclusive-write locking, bounded pool/transaction budgets, authenticated production client-IP forwarding, strict required/excess-grant readiness and reviewed additive grant planning are under validation. See docs/SECURITY_HARDENING.md and its measured results. No push, merge, deployment or production database access is authorized. Real ingress, provider-pooler, cutover/rollback and independent release review remain gates.
+
 ## CRM opportunities — feat/crm-opportunities
 
 Contact-linked opportunity capture, exact estimated INR value, OPEN/PROPOSAL/WON/LOST lifecycle, replay-safe creation, versioned stage mutations, search and paginated directory are implemented using existing BBD auth/tenancy/UI/audit. See docs/OPPORTUNITIES.md for source-access facts, actual tests and limitations. No external integration, merge or deployment is authorized; independent human review remains required. Appointment reminders are next only after this slice is preserved/reviewed.

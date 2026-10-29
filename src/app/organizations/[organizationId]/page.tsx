@@ -63,7 +63,7 @@ export default async function Dashboard({
               className="block text-sm font-medium text-primary underline"
               href={`/organizations/${organizationId}/members`}
             >
-              Manage people & access →
+              Manage people &amp; access →
             </Link>
             <Link
               className="block text-sm font-medium text-primary underline"

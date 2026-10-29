@@ -4,11 +4,17 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PrismaClient } from "../../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { assertRuntimeDatabase } from "../../src/lib/tenant-context";
+import {
+  assertRuntimeDatabase,
+  assertRuntimeReadiness,
+} from "../../src/lib/tenant-context";
 import { enforceRuntimePrivileges } from "../../scripts/runtime-privileges";
 import {
   identifier,
   runtimePrivilegeAuditSQL,
+  runtimeGrantStatements,
+  runtimeTables,
+  runtimeRequiredPrivilegesSQL,
 } from "../../src/lib/runtime-privileges";
 
 // Every mutable role/database below is generated exclusively for this suite.
@@ -83,6 +89,74 @@ afterAll(async () => {
   await root.end();
 });
 describe("runtime privilege contract on isolated PostgreSQL fixtures", () => {
+  it("keeps the PR6 rollback contract fail-closed after opportunity grants, without revoking current grants", async () => {
+    const previous = Object.fromEntries(
+      Object.entries(runtimeTables).filter(([name]) => name !== "Opportunity"),
+    );
+    const currentSQL = runtimePrivilegeAuditSQL("$1");
+    const previousSQL = currentSQL.replace(
+      JSON.stringify(runtimeTables),
+      JSON.stringify(previous),
+    );
+    expect(previousSQL).not.toBe(currentSQL);
+    const before = await grants();
+    const drift = await owner.query(previousSQL, [role]);
+    expect(drift.rows.some((row) => row.object.includes("Opportunity"))).toBe(
+      true,
+    );
+    expect(await grants()).toEqual(before);
+    await expect(assertRuntimeReadiness(runtime)).resolves.toBeUndefined();
+  });
+  it("rejects incomplete required grants and restores only the reviewed additive grant plan", async () => {
+    await expect(assertRuntimeReadiness(runtime)).resolves.toBeUndefined();
+    await owner.query(
+      `REVOKE SELECT ON public."Contact" FROM ${identifier(role)}`,
+    );
+    try {
+      await expect(assertRuntimeReadiness(runtime)).rejects.toThrow(
+        "missing required",
+      );
+    } finally {
+      for (const sql of runtimeGrantStatements(role)) await owner.query(sql);
+    }
+    await expect(assertRuntimeReadiness(runtime)).resolves.toBeUndefined();
+    expect(await audit()).toEqual([]);
+  });
+
+  it("rejects a missing required helper grant without granting runtime migration-history access", async () => {
+    await owner.query(
+      `REVOKE EXECUTE ON FUNCTION bbd_private.actor_id() FROM ${identifier(role)}`,
+    );
+    try {
+      await expect(assertRuntimeReadiness(runtime)).rejects.toThrow(
+        "missing required",
+      );
+    } finally {
+      await enforceRuntimePrivileges(owner, role);
+    }
+    await expect(assertRuntimeReadiness(runtime)).resolves.toBeUndefined();
+  });
+
+  it("rejects schema/artifact mismatch without altering or caching the runtime audit", async () => {
+    await owner.query(
+      'ALTER TABLE public."Doctor" RENAME COLUMN "scheduleVersion" TO "fixtureScheduleVersion"',
+    );
+    try {
+      const missing = await owner.query(runtimeRequiredPrivilegesSQL("$1"), [
+        role,
+      ]);
+      expect(
+        missing.rows.some((row) => row.object === "Doctor.scheduleVersion"),
+      ).toBe(true);
+      await expect(assertRuntimeReadiness(runtime)).rejects.toThrow();
+    } finally {
+      await owner.query(
+        'ALTER TABLE public."Doctor" RENAME COLUMN "fixtureScheduleVersion" TO "scheduleVersion"',
+      );
+    }
+    await expect(assertRuntimeReadiness(runtime)).resolves.toBeUndefined();
+  });
+
   it("is repeatable, retains column-only updates, and makes TRUNCATE actually fail", async () => {
     const first = await grants();
     await enforceRuntimePrivileges(owner, role);

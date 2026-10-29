@@ -40,8 +40,10 @@ jobs:
       - run: npm run test:privileges
       - run: npm run test:integration
       - run: npm run test:migrations
+      - run: npm run test:migrations:fresh
       - run: npm run test:pooler
       - run: npm run build
+      - run: npm run test:auth-proxy
       - name: Test actual Next.js requests and Server Actions
         shell: bash
         run: |

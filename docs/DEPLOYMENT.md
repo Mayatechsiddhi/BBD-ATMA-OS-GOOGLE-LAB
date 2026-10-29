@@ -1,3 +1,9 @@
+# Current deployment security contract
+
+Read [SECURITY_HARDENING.md](SECURITY_HARDENING.md) before the historical runbook below. Production now requires an authenticated client-IP gateway contract (`AUTH_PROXY_SECRET`), bounded per-process pools, strict required/excess runtime grants at startup, and a separate read-only migration-history preflight. Generate reviewed additive SQL with `npm run --silent db:grants:plan -- <runtime_role>`; no command here executes it against production. `db:runtime:local` remains local-only. The public `/api/health` is connectivity-only and must not be used as a schema/grant readiness attestation.
+
+No rollout, billing, public exposure or production credential use is approved. Older artifacts cannot safely overlap new grant contracts; rehearse coordinated cutover/rollback first. Tests of the simulated production gateway do not verify a real edge or production browser/SMTP flow.
+
 # Deployment runbook — review before execution
 
 This is an operational handoff, not evidence of a deployment. No production system has been accessed. A deployment requires explicit owner approval and completion of SECURITY.md gates.

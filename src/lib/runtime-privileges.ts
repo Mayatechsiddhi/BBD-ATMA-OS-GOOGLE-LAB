@@ -64,6 +64,60 @@ export const runtimeFunctions = [
   "invitation_recipient(text,text)",
   "create_organization(text,text,text)",
 ];
+
+/** Missing allowlisted grants are readiness failures, not privilege drift.
+ * Kept separate so local pre-migration bootstrap can remain additive/repeatable.
+ */
+export function runtimeRequiredPrivilegesSQL(role: "session_user" | "$1") {
+  if (role !== "session_user" && role !== "$1")
+    throw new Error("Invalid privilege readiness role selector");
+  const policy = literal(JSON.stringify(runtimeTables));
+  const functions = runtimeFunctions
+    .map((name) => literal("bbd_private." + name))
+    .join(",");
+  return `WITH subject AS (SELECT oid FROM pg_roles WHERE rolname=${role}),
+    expected AS (SELECT key AS name,value FROM jsonb_each(${policy}::jsonb)),
+    objects AS (SELECT e.*,to_regclass('public.'||quote_ident(name)) AS relation FROM expected e),
+    findings AS (
+      SELECT 'role' AS kind,'runtime login'::text AS object,'missing role'::text AS privilege WHERE NOT EXISTS(SELECT 1 FROM subject)
+      UNION ALL SELECT 'schema',s.name,'USAGE' FROM (VALUES ('public'),('bbd_private')) s(name),subject r
+        WHERE NOT coalesce(has_schema_privilege(r.oid,to_regnamespace(s.name),'USAGE'),false)
+      UNION ALL SELECT 'table',o.name,'missing relation' FROM objects o WHERE relation IS NULL
+      UNION ALL SELECT 'table',o.name,p.privilege FROM objects o,subject r,
+        LATERAL jsonb_array_elements_text(o.value->'privileges') p(privilege)
+        WHERE o.relation IS NOT NULL AND NOT has_table_privilege(r.oid,o.relation,p.privilege)
+      UNION ALL SELECT 'column',o.name||'.'||p.column_name,'UPDATE' FROM objects o CROSS JOIN subject r
+        CROSS JOIN LATERAL jsonb_array_elements_text(coalesce(o.value->'update','[]'::jsonb)) p(column_name)
+        LEFT JOIN pg_attribute a ON a.attrelid=o.relation AND a.attname=p.column_name AND a.attnum>0 AND NOT a.attisdropped
+        WHERE o.relation IS NOT NULL AND (a.attnum IS NULL OR NOT has_column_privilege(r.oid,o.relation,a.attnum,'UPDATE'))
+      UNION ALL SELECT 'function',f.signature,'EXECUTE' FROM unnest(ARRAY[${functions}]) f(signature),subject r
+        WHERE NOT coalesce(has_function_privilege(r.oid,to_regprocedure(f.signature),'EXECUTE'),false)
+    ) SELECT kind,object,privilege FROM findings ORDER BY kind,object,privilege`;
+}
+
+/** Reviewed, additive SQL for an operator to inspect; never executes remotely. */
+export function runtimeGrantStatements(role: string) {
+  if (!/^[a-z_][a-z0-9_]{0,62}$/.test(role))
+    throw new Error("Use an explicit PostgreSQL runtime role name");
+  const target = identifier(role);
+  return [
+    ...["public", "bbd_private"].map(
+      (schema) => `GRANT USAGE ON SCHEMA ${identifier(schema)} TO ${target};`,
+    ),
+    ...Object.entries(runtimeTables).flatMap(([table, policy]) => [
+      `GRANT ${policy.privileges.join(",")} ON TABLE public.${identifier(table)} TO ${target};`,
+      ...(policy.update
+        ? [
+            `GRANT UPDATE (${policy.update.map(identifier).join(",")}) ON TABLE public.${identifier(table)} TO ${target};`,
+          ]
+        : []),
+    ]),
+    ...runtimeFunctions.map(
+      (signature) =>
+        `GRANT EXECUTE ON FUNCTION bbd_private.${signature} TO ${target};`,
+    ),
+  ];
+}
 const literal = (value: string) => "'" + value.replaceAll("'", "''") + "'";
 export const identifier = (value: string) =>
   '"' + value.replaceAll('"', '""') + '"';

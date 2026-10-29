@@ -31,7 +31,12 @@
     "test:privileges": "node scripts/test-runtime-privileges.mjs",
     "test:migrations": "node scripts/verify-rls-migrations.mjs",
     "test:pooler": "node scripts/test-pooler.mjs",
-    "test:browser": "tsx --env-file=.env scripts/browser-invitations.ts"
+    "test:browser": "tsx --env-file=.env scripts/browser-invitations.ts",
+    "test:load": "node scripts/test-integration.mjs tests/integration/contention.test.ts",
+    "test:auth-proxy": "node scripts/test-auth-proxy.mjs",
+    "db:readiness": "node --import tsx scripts/check-db-readiness.mjs",
+    "db:grants:plan": "node --import tsx scripts/plan-runtime-grants.mjs",
+    "test:migrations:fresh": "node scripts/verify-rls-migrations.mjs --fresh"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

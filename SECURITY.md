@@ -12,6 +12,12 @@ Report suspected vulnerabilities privately to repository owners. Do not disclose
 - Next.js action CSRF/body-size defenses and browser headers (nosniff, DENY framing, same-origin referrer policy, restrictive permissions and baseline CSP). Native same-origin POSTs retain Origin for CSRF validation; cross-origin navigation sends no referrer.
 - Client-only authentication/recovery forms explicitly use POST and disable submission until hydration, preventing native GET credential leakage before event handlers are ready. Next development argument traces and browser-to-terminal forwarding are disabled; the browser regression checks local server logs for fixture secrets.
 
+## Audit follow-up
+
+Production auth HTTP rejects unverified client-IP assertions: a trusted gateway must overwrite x-bbd-client-ip and x-bbd-auth-proxy-key, use a random AUTH_PROXY_SECRET from secret storage, strip client-supplied versions and prevent direct backend access. The key is consumed before Better Auth; XFF is not selected outside local synthetic development. Real ingress remains unverified until an approved staging exercise. Shared-NAT clients retain the existing per-IP limit; no account-limit/MFA policy is claimed.
+
+Read/display advisory locks are shared, mutations/access changes exclusive, and membership is checked after locking. Transaction privilege/RLS audits remain uncached. Public health is connectivity-only; startup/private preflight verifies required as well as excessive grants. See docs/SECURITY_HARDENING.md for exact scope, negative tests and release limits.
+
 ## Production gates
 
 This milestone is production-oriented application code, not a declaration of operational production readiness. No deployment was performed.
@@ -24,6 +30,8 @@ This milestone is production-oriented application code, not a declaration of ope
 6. Run real browser, accessibility, multi-instance rate-limit and dependency security checks before launch. Bound invitation/action volumes and add a durable mail outbox before scale.
 
 ## Dependency advisory status
+
+The 30 October audit of this unchanged dependency lockfile reported zero known vulnerabilities in both production and full npm audits, and zero Trivy matches across 805 package records. These are dated advisory snapshots, not proof of supply-chain safety. The notes below describe historical findings; they are not a claim that the old advisory remains active today.
 
 Clinic Phase 1 rechecks the registry rather than relying on the earlier foundation snapshot. fast-uri 3.1.8 had URI-normalization advisories; its reviewed, range-compatible 3.1.9 leaf patch is locked. See docs/CLINIC_PHASE1_VALIDATION.md for current production/full audit results. Audit output is a dated advisory snapshot, not a security certification.
 

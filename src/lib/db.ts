@@ -1,5 +1,6 @@
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { databasePoolOptions } from "./database-options";
 if (!process.env.RUNTIME_DATABASE_URL)
   throw new Error(
     "RUNTIME_DATABASE_URL is required; migration credentials must not be used by the app",
@@ -10,6 +11,7 @@ export const db =
   new PrismaClient({
     adapter: new PrismaPg({
       connectionString: process.env.RUNTIME_DATABASE_URL,
+      ...databasePoolOptions(),
     }),
   });
 if (process.env.NODE_ENV !== "production") globalDb.db = db;

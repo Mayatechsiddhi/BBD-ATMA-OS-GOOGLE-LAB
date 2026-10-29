@@ -1,4 +1,4 @@
-import { assertRuntimeDatabase } from "../src/lib/tenant-context";
+import { assertRuntimeReadiness } from "../src/lib/tenant-context";
 import { db } from "../src/lib/db";
 import { readEnv } from "../src/lib/env";
 readEnv({ ...process.env, NODE_ENV: process.argv[2] ?? "development" });
@@ -7,7 +7,7 @@ console.log(
 );
 
 try {
-  await assertRuntimeDatabase();
+  await assertRuntimeReadiness();
 } finally {
   await db.$disconnect();
 }

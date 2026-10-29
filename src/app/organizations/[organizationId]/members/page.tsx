@@ -18,7 +18,7 @@ export default async function Members({
   return (
     <>
       <div>
-        <h1 className="text-3xl font-semibold">People & access</h1>
+        <h1 className="text-3xl font-semibold">People &amp; access</h1>
         <p className="mt-2 text-muted-foreground">
           Owners manage roles. Owners and administrators invite colleagues.
         </p>

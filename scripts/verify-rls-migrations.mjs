@@ -1,5 +1,7 @@
 /** No reset/drop: apply twice on a dedicated local DB owned by a non-superuser. */
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import pg from "pg";
@@ -14,9 +16,19 @@ url.pathname = "/postgres";
 const admin = new pg.Client({ connectionString: url.toString() });
 await admin.connect();
 // Separate login and database: preserve the older SET ROLE verification database.
-const name = "bbd_calling_migration_test",
-  owner = "bbd_calling_migration_test_owner";
-const credentialFile = ".env.calling-migration-test";
+const fresh = process.argv.includes("--fresh");
+const name = fresh
+    ? `bbd_readiness_${randomBytes(8).toString("hex")}_test`
+    : "bbd_calling_migration_test",
+  owner = fresh ? `${name}_owner` : "bbd_calling_migration_test_owner";
+// Fresh fixtures are retained for inspection; only their credential file is in
+// a private temporary directory. Existing databases/roles/files stay intact.
+const credentialFile = fresh
+  ? path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), "bbd-migration-")),
+      "credentials.json",
+    )
+  : ".env.calling-migration-test";
 if (!fs.existsSync(credentialFile))
   fs.writeFileSync(
     credentialFile,
@@ -68,6 +80,7 @@ const env = {
   RUNTIME_DATABASE_URL: runtime.toString(),
   TEST_DATABASE_URL: migration.toString(),
   TEST_RUNTIME_DATABASE_URL: runtime.toString(),
+  MIGRATION_AUDIT_DATABASE_URL: migration.toString(),
 };
 const probe = new pg.Client({ connectionString: migration.toString() });
 try {
@@ -96,6 +109,7 @@ for (const args of [
   ["scripts/prisma-wasm.mjs", "migrate"],
   ["scripts/prisma-wasm.mjs", "migrate"],
   ["--import", "tsx", "scripts/configure-local-runtime.mjs"],
+  ["--import", "tsx", "scripts/check-db-readiness.mjs"],
   ["scripts/test-integration.mjs"],
 ]) {
   const result = spawnSync("node", args, { stdio: "inherit", env });

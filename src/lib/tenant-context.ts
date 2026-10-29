@@ -1,6 +1,10 @@
 import { Prisma, type Organization } from "@/generated/prisma/client";
 import { db } from "./db";
-import { runtimePrivilegeAuditSQL } from "./runtime-privileges";
+import { tenantTransactionOptions } from "./database-options";
+import {
+  runtimePrivilegeAuditSQL,
+  runtimeRequiredPrivilegesSQL,
+} from "./runtime-privileges";
 export async function assertRuntimeDatabase(tx: Prisma.TransactionClient = db) {
   const [role] = await tx.$queryRaw<
     { unsafe: boolean; protectedTables: number; transactionContext: boolean }[]
@@ -36,6 +40,22 @@ export async function assertRuntimeDatabase(tx: Prisma.TransactionClient = db) {
   );
   if (drift.length) throw new Error("Unsafe runtime database privileges");
 }
+
+/** Startup/readiness is strict about required grants as well as excess grants.
+ * Tenant transactions retain the uncached fail-closed drift/RLS audit above.
+ */
+export async function assertRuntimeReadiness(
+  tx: Prisma.TransactionClient = db,
+) {
+  await assertRuntimeDatabase(tx);
+  const missing = await tx.$queryRaw<unknown[]>(
+    Prisma.raw(runtimeRequiredPrivilegesSQL("session_user")),
+  );
+  if (missing.length)
+    throw new Error(
+      "Runtime database is missing required schema or privileges",
+    );
+}
 export async function setOrganizationContext(
   tx: Prisma.TransactionClient,
   organizationId: string,
@@ -53,7 +73,7 @@ export async function withActor<T>(
     await assertRuntimeDatabase(tx);
     await tx.$queryRaw`SELECT set_config('bbd.context_transaction',pg_current_xact_id()::text,true),set_config('bbd.actor_id',${userId},true),set_config('bbd.organization_id',${organizationId},true),set_config('bbd.invitation_hash',${invitationHash},true)`;
     return run(tx);
-  });
+  }, tenantTransactionOptions);
 }
 export async function bootstrapOrganization(
   tx: Prisma.TransactionClient,

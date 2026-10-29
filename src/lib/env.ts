@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { validProxySecret } from "./auth-proxy";
+import { databasePoolOptions } from "./database-options";
 const schema = z.object({
   RUNTIME_DATABASE_URL: z
     .url()
@@ -13,10 +15,12 @@ const schema = z.object({
   SMTP_FROM: z.email(),
   SMTP_USER: z.string().optional(),
   SMTP_PASSWORD: z.string().optional(),
+  AUTH_PROXY_SECRET: z.string().optional(),
 });
 export function readEnv(
   source: Record<string, string | undefined> = process.env,
 ) {
+  databasePoolOptions(source);
   const result = schema.safeParse(source);
   if (!result.success)
     throw new Error(
@@ -32,5 +36,12 @@ export function readEnv(
     (!result.data.SMTP_USER || !result.data.SMTP_PASSWORD)
   )
     throw new Error("Production SMTP requires authentication");
+  if (
+    source.NODE_ENV === "production" &&
+    !validProxySecret(result.data.AUTH_PROXY_SECRET)
+  )
+    throw new Error(
+      "Production authentication requires a valid AUTH_PROXY_SECRET",
+    );
   return result.data;
 }

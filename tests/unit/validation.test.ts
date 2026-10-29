@@ -62,8 +62,15 @@ it("validates production runtime configuration without migration credentials", (
     SMTP_FROM: "accounts@example.com",
     SMTP_USER: "fixture",
     SMTP_PASSWORD: "fixture",
+    AUTH_PROXY_SECRET: "synthetic-proxy-key-".repeat(3),
   };
   expect(readEnv(valid).RUNTIME_DATABASE_URL).toBe(valid.RUNTIME_DATABASE_URL);
+  expect(() => readEnv({ ...valid, AUTH_PROXY_SECRET: undefined })).toThrow(
+    "AUTH_PROXY_SECRET",
+  );
+  expect(() =>
+    readEnv({ ...valid, AUTH_PROXY_SECRET: "\n".repeat(40) }),
+  ).toThrow("AUTH_PROXY_SECRET");
   const { RUNTIME_DATABASE_URL: omitted, ...rest } = valid;
   expect(omitted).toBeTruthy();
   expect(() =>

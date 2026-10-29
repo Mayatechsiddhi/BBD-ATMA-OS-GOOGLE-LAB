@@ -1,5 +1,7 @@
 # Source and third-party licensing audit
 
+The audit-hardening branch adds BBD-owned ingress, readiness and regression code using existing Node crypto/net APIs and pinned dependencies only. No package versions, third-party application source, provider APIs or licensing assumptions were added. Temporary previously reviewed Semgrep/Trivy/Gitleaks tools remain audit-only, not shipped application dependencies.
+
 CRM opportunities reuse BBD-owned services/UI and already pinned libraries; package.json and package-lock.json are unchanged. The supplied six-workflow archive is accessible, but original HTML/CSS/JS/author-specific skills and commercial workflow rights are not supplied. No third-party source was incorporated; exact accessible filenames are recorded briefly in OPPORTUNITIES.md. No new license or provider contract is presumed.
 
 ## PR #3 review follow-up — 21 October 2026 (IST)

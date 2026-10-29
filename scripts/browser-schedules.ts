@@ -45,14 +45,27 @@ export async function scheduleBrowser(
       .fill("13:00");
   }
   const response = owner.waitForResponse(
+    // Capture the native action, including the validated end-of-day boundary.
     (r) =>
       r.request().method() === "POST" && new URL(r.url()).pathname === path,
   );
+  await form
+    .getByRole("group", { name: "Sunday", exact: true })
+    .getByLabel("End (IST)", { exact: true })
+    .fill("24:00");
   await form
     .getByRole("button", { name: "Save working hours", exact: true })
     .click();
   const request = (await response).request();
   await owner.getByText("Schedule saved.", { exact: true }).waitFor();
+  assert.equal(
+    await form
+      .getByRole("group", { name: "Sunday", exact: true })
+      .getByLabel("End (IST)", { exact: true })
+      .inputValue(),
+    "24:00",
+    "End-of-day hours must round-trip through the editor",
+  );
   assert.equal(
     (await adminDb.doctor.findUniqueOrThrow({ where: { id: doctorId } }))
       .scheduleVersion,

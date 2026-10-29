@@ -1,6 +1,18 @@
 import { z } from "zod";
 import { clinicDate, dayRange } from "./time";
 import type { Interval } from "./availability";
+import { ClinicError } from "./workflow";
+
+export const scheduleEndPattern = "(?:[01][0-9]|2[0-3]):[0-5][0-9]|24:00";
+export function scheduleMinutes(value: string, endOfDay = false) {
+  if (endOfDay && value === "24:00") return 1440;
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))
+    throw new ClinicError(
+      "Use HH:MM within the same day; 24:00 is an end-of-day boundary only.",
+    );
+  const [h, m] = value.split(":").map(Number);
+  return h * 60 + m;
+}
 
 const minute = z.number().int().min(0).max(1440).multipleOf(15);
 export const workingDay = z

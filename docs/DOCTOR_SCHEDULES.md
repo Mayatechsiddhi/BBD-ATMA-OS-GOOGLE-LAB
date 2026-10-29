@@ -1,5 +1,7 @@
 # Doctor scheduling implementation
 
+PR #6 review follow-up (29 October 2026): a confirmed 24:00 editor round-trip defect is corrected; end/break-end fields now accept HH:MM or 24:00, while starts remain ordinary same-day times. Fresh validation passed 111 unit tests, 22 privilege tests, 66 integration tests in each of three database configurations, HTTP and the uninterrupted 14-group Chromium suite. See PR6_SECURITY_REVIEW.md for final evidence and severity findings. The initial split/failed browser history below is superseded by that full passing rerun, not erased.
+
 Branch: feat/clinic-doctor-schedules, based on feat/clinic-slot-suggestions at 5fee593d487feae4f2f375f05e15bffc7259684d. No merge, deployment, external integration or third-party source import is included.
 
 ## Delivered behavior
@@ -12,7 +14,7 @@ NULL deliberately preserves prior manual/resource booking until staff explicitly
 
 Schedule writes acquire the same organization advisory lock as booking, freshly authorize the actor and check the submitted version. Concurrent/stale form saves cannot silently overwrite each other. Hours/leave changes that would invalidate any active, not-yet-ended appointment are rejected with no data loss. Existing durations are grandfathered when duration changes; future new/rescheduled bookings use the new value. Schedule, version/revision and audit commit atomically. Removing leave is an audited versioned mutation. Staff must reload after another editor's change; no automatic cancellation, moving of appointments or destructive schedule reset is offered.
 
-## Validation and publication evidence
+## Initial implementation validation and publication evidence
 
 Local test database: bbd_schedule_validation_test, synthetic fixtures and local Mailpit only. All original migration files remain unchanged. Logs are outside Git under /tmp/bbd-schedule-validation.
 

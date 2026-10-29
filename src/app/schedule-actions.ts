@@ -7,14 +7,9 @@ import { AccessError } from "@/modules/organizations/policy";
 import { ClinicError } from "@/modules/clinic/workflow";
 import { changeDoctorSchedule } from "@/modules/clinic/schedule-service";
 import { logger } from "@/lib/logger";
+import { scheduleMinutes } from "@/modules/clinic/schedule";
 const text = (data: FormData, key: string) =>
   z.string().max(100).parse(data.get(key));
-function minutes(value: string) {
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))
-    throw new ClinicError("Use valid times within the same day.");
-  const [h, m] = value.split(":").map(Number);
-  return h * 60 + m;
-}
 async function submit(
   org: string,
   data: FormData,
@@ -31,13 +26,13 @@ async function submit(
               .filter((d) => data.get(`open${d}`) === "on")
               .map((weekday) => ({
                 weekday,
-                start: minutes(text(data, `start${weekday}`)),
-                end: minutes(text(data, `end${weekday}`)),
+                start: scheduleMinutes(text(data, `start${weekday}`)),
+                end: scheduleMinutes(text(data, `end${weekday}`), true),
                 breakStart: data.get(`breakStart${weekday}`)
-                  ? minutes(text(data, `breakStart${weekday}`))
+                  ? scheduleMinutes(text(data, `breakStart${weekday}`))
                   : null,
                 breakEnd: data.get(`breakEnd${weekday}`)
-                  ? minutes(text(data, `breakEnd${weekday}`))
+                  ? scheduleMinutes(text(data, `breakEnd${weekday}`), true)
                   : null,
               })),
           }

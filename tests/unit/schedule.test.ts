@@ -3,6 +3,7 @@ import {
   scheduleInput,
   scheduleAllows,
   readSchedule,
+  scheduleMinutes,
 } from "../../src/modules/clinic/schedule";
 const policy = scheduleInput.parse({
   duration: 30,
@@ -16,6 +17,33 @@ const slot = (start: string, end: string) => ({
   endsAt: new Date(`2030-01-07T${end}:00+05:30`),
 });
 describe("doctor scheduling rules", () => {
+  it("parses end-of-day boundaries without allowing 24:00 as a start or invalid times", () => {
+    expect(scheduleMinutes("24:00", true)).toBe(1440);
+    expect(scheduleMinutes("00:00")).toBe(0);
+    for (const value of ["24:01", "25:00", "9:00", "invalid"])
+      expect(() => scheduleMinutes(value, true)).toThrow();
+    expect(() => scheduleMinutes("24:00")).toThrow();
+  });
+  it("permits an appointment ending exactly at midnight within an end-of-day shift", () => {
+    const late = scheduleInput.parse({
+      ...policy,
+      weekly: [
+        {
+          weekday: 1,
+          start: 1380,
+          end: 1440,
+          breakStart: null,
+          breakEnd: null,
+        },
+      ],
+    });
+    expect(
+      scheduleAllows(late, {
+        startsAt: new Date("2030-01-07T23:30:00+05:30"),
+        endsAt: new Date("2030-01-08T00:00:00+05:30"),
+      }),
+    ).toBe(true);
+  });
   it("allows working hours with half-open break boundaries", () => {
     expect(scheduleAllows(policy, slot("09:00", "09:30"))).toBe(true);
     expect(scheduleAllows(policy, slot("11:30", "12:00"))).toBe(true);

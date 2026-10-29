@@ -10,6 +10,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/message";
+import { scheduleEndPattern } from "@/modules/clinic/schedule";
 const names = [
   "Sunday",
   "Monday",
@@ -115,8 +116,10 @@ export default async function Schedules({
                         End (IST)
                         <Input
                           name={`end${weekday}`}
-                          type="time"
-                          step={900}
+                          type="text"
+                          pattern={scheduleEndPattern}
+                          placeholder="HH:MM; 24:00 for end of day"
+                          maxLength={5}
                           defaultValue={clock(rule?.end ?? 1020)}
                         />
                       </label>
@@ -137,8 +140,10 @@ export default async function Schedules({
                         Break end (optional)
                         <Input
                           name={`breakEnd${weekday}`}
-                          type="time"
-                          step={900}
+                          type="text"
+                          pattern={scheduleEndPattern}
+                          placeholder="HH:MM; 24:00 for end of day"
+                          maxLength={5}
                           defaultValue={
                             rule?.breakEnd != null ? clock(rule.breakEnd) : ""
                           }

@@ -5,6 +5,7 @@ import { chromium, type BrowserContext, type Page } from "playwright-core";
 import { adminDb } from "./local-admin-db";
 import { callingBrowser } from "./browser-calling";
 import { clinicBrowser } from "./browser-clinic";
+import { opportunitiesBrowser } from "./browser-opportunities";
 import { db } from "../src/lib/db";
 import { createOrganization } from "../src/modules/organizations/service";
 
@@ -103,7 +104,10 @@ async function submit(page: Page, email: string) {
 try {
   const owner = await account("owner"),
     foreign = await account("foreign"),
-    recipient = await account("recipient");
+    recipient = await account("recipient"),
+    // Keep real authentication fixture setup together, before navigation/action
+    // phases compile additional routes. All auth assertions/deadlines remain.
+    displayAccount = await account("calling-display");
   const org = await createOrganization(owner.userId, {
     name: "Browser invitation A",
     slug: `browser-a-${run}`,
@@ -321,7 +325,15 @@ try {
       run,
     })),
   );
-  const displayAccount = await account("calling-display");
+  sensitive.push(
+    ...(await opportunitiesBrowser(
+      owner.page,
+      foreign.context,
+      recipient.page,
+      org.id,
+      run,
+    )),
+  );
   sensitive.push(
     ...(await callingBrowser({
       owner: owner.page,
@@ -354,7 +366,7 @@ try {
   );
   if (error instanceof Error) {
     const scenarioLocation = error.stack?.match(
-      /browser-(?:clinic|calling|invitations|slots|schedules)\.ts:\d+:\d+/,
+      /browser-(?:clinic|calling|invitations|slots|schedules|opportunities)\.ts:\d+:\d+/,
     )?.[0];
     if (scenarioLocation)
       console.error(`Browser scenario location: ${scenarioLocation}`);

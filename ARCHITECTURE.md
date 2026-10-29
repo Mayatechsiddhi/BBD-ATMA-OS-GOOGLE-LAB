@@ -1,5 +1,7 @@
 # BBD Master ATMA OS architecture
 
+CRM opportunities reuse Contact through a composite tenant foreign key and extend the protected inventory to twelve tables. Capture uses a tenant-scoped request UUID; stage mutations use optimistic versions inside the existing organization transaction/audit boundary. Existing CRM contacts and Clinic OS remain their current modules; no second identity, queue, scheduling or UI framework is added. See docs/OPPORTUNITIES.md for implemented scope.
+
 Doctor scheduling extends the existing clinic/calling boundary with validated JSON and optimistic versioning on Doctor, reusing its FORCE RLS and transaction/audit controls. Shared hours/break/leave/duration rules constrain slot suggestions and new/rescheduled doctor-resource bookings. Hours/leave edits preserve active appointments by rejecting conflicts; no background scheduler or external service is added. See docs/DOCTOR_SCHEDULES.md for legacy-null behavior and exact limits.
 
 ## Foundation milestone

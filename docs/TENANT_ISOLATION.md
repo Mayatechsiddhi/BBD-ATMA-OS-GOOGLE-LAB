@@ -1,6 +1,6 @@
 # Foundation verification and tenant-isolation audit
 
-Doctor calling extends the current protected inventory to eleven tables and adds a restricted DISPLAY role. See DOCTOR_CALLING.md; counts and findings in older milestones below remain historical.
+CRM opportunities extend the current protected inventory to twelve tables, including Opportunity with a composite tenant Contact foreign key and restricted column grants. DISPLAY cannot read Opportunity. See OPPORTUNITIES.md; counts and findings in older milestones below remain historical.
 
 Clinic Phase 1 extends the protected inventory to eight tables. See CLINIC_CRM.md and CLINIC_PHASE1_VALIDATION.md for the additive clinic migration, grants, composite foreign keys and current verification; earlier milestone counts below are historical.
 

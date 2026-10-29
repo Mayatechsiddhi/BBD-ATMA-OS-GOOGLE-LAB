@@ -79,6 +79,7 @@ model Organization {
   invitations Invitation[]
   auditEvents AuditEvent[]
   contacts Contact[]
+  opportunities Opportunity[]
   clinicLeads ClinicLead[]
   appointments Appointment[]
   followUps FollowUp[]
@@ -136,9 +137,28 @@ model Contact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  opportunities Opportunity[]
   @@unique([organizationId,id])
   @@unique([organizationId,email])
   @@index([organizationId,status,createdAt])
+}
+
+model Opportunity {
+  id String @id @default(cuid())
+  organizationId String
+  contactId String
+  title String
+  amountPaise Int
+  stage String @default("OPEN")
+  version Int @default(0)
+  requestKey String @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  contact Contact @relation(fields:[organizationId,contactId], references:[organizationId,id], onDelete:Cascade, map:"Opportunity_contact_tenant_fkey")
+  @@unique([organizationId,id])
+  @@unique([organizationId,requestKey])
+  @@index([organizationId,stage,createdAt,id])
 }
 
 

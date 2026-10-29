@@ -1,5 +1,7 @@
 # Source and third-party licensing audit
 
+CRM opportunities reuse BBD-owned services/UI and already pinned libraries; package.json and package-lock.json are unchanged. The supplied six-workflow archive is accessible, but original HTML/CSS/JS/author-specific skills and commercial workflow rights are not supplied. No third-party source was incorporated; exact accessible filenames are recorded briefly in OPPORTUNITIES.md. No new license or provider contract is presumed.
+
 ## PR #3 review follow-up — 21 October 2026 (IST)
 
 Added only `playwright-core` 1.64.1 as an exact development dependency for real browser regression tests. npm metadata, Node >=20 compatibility, absence of install hooks, Apache-2.0 declaration and installed LICENSE were reviewed before execution. npm lock integrity is retained; the inventory now contains 819 packages. No browser binary is bundled into the application. Tests use the existing Chromium installation; CI may use its preinstalled Chrome via CHROMIUM_PATH. Browser distribution terms are separate from Playwright's license.

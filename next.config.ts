@@ -11,6 +11,7 @@ const config: NextConfig = {
         /\/reset-password/,
         // Clinic search URLs may contain phone numbers or names.
         /\/organizations\/[^/]+\/clinic(?:\/|\?|$)/,
+        /\/organizations\/[^/]+\/crm\/opportunities(?:\/|\?|$)/,
         /\/api\/organizations\/[^/]+\/calling/,
         /\/display\//,
       ],

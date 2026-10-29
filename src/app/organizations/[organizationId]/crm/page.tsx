@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Message } from "@/components/message";
+import Link from "next/link";
 export default async function CRM({
   params,
   searchParams,
@@ -24,6 +25,12 @@ export default async function CRM({
           Client workflow
         </p>
         <h1 className="mt-2 text-3xl font-semibold">Client relationships</h1>
+        <Link
+          href={`/organizations/${organizationId}/crm/opportunities`}
+          className="mt-3 inline-block text-primary underline"
+        >
+          Opportunities
+        </Link>
         <p className="mt-2 text-muted-foreground">
           Capture a lead, qualify the relationship, then convert it to a
           customer. Every change is saved and audited.

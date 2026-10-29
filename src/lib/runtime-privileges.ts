@@ -5,6 +5,10 @@ export const runtimeTables: Record<
   string,
   { privileges: string[]; update?: string[] }
 > = {
+  Opportunity: {
+    privileges: ["SELECT", "INSERT"],
+    update: ["stage", "version", "updatedAt"],
+  },
   Patient: { privileges: ["SELECT", "INSERT"] },
   Doctor: {
     privileges: ["SELECT", "INSERT"],

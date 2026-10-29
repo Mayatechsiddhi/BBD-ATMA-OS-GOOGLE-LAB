@@ -1,5 +1,9 @@
 # Persistent implementation roadmap
 
+## CRM opportunities — feat/crm-opportunities
+
+Contact-linked opportunity capture, exact estimated INR value, OPEN/PROPOSAL/WON/LOST lifecycle, replay-safe creation, versioned stage mutations, search and paginated directory are implemented using existing BBD auth/tenancy/UI/audit. See docs/OPPORTUNITIES.md for source-access facts, actual tests and limitations. No external integration, merge or deployment is authorized; independent human review remains required. Appointment reminders are next only after this slice is preserved/reviewed.
+
 ## Doctor working hours — feat/clinic-doctor-schedules
 
 Implemented weekly doctor hours, optional daily break, full-day leave and appointment duration with versioned/audited saves on the existing tenant-protected Doctor model. Shared rules govern slot suggestions, booking and rescheduling; conflicting active appointments are preserved. Exact validation and limits are in docs/DOCTOR_SCHEDULES.md. Independent human review and deployment approval remain required.

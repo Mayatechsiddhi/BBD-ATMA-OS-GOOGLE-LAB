@@ -137,6 +137,7 @@ describe("PostgreSQL tenant isolation under the actual unprivileged application 
       "FollowUp",
       "Invitation",
       "Membership",
+      "Opportunity",
       "Organization",
       "Patient",
       "QueueToken",

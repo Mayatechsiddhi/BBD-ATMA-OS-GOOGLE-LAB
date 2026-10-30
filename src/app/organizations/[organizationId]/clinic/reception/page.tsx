@@ -30,7 +30,7 @@ export default async function Reception({
   }>;
 }) {
   const { organizationId: org } = await params;
-  const { user, role } = await organizationContext(org);
+  const { user, role } = await organizationContext(org, "clinic");
   const query = await searchParams;
   const parsed = queueQuery.safeParse(query);
   if (!parsed.success) return <Message error="Invalid queue filters." />;

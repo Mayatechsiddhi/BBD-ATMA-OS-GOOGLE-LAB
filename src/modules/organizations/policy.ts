@@ -1,6 +1,12 @@
 import type { Role } from "@/generated/prisma/client";
 export type Permission =
-  "display:read" | "read" | "settings" | "invite" | "members" | "crm:write";
+  | "modules:manage"
+  | "display:read"
+  | "read"
+  | "settings"
+  | "invite"
+  | "members"
+  | "crm:write";
 export class AccessError extends Error {
   constructor() {
     super("Access denied");
@@ -8,7 +14,15 @@ export class AccessError extends Error {
 }
 const permissions: Record<Role, readonly Permission[]> = {
   DISPLAY: ["display:read"],
-  OWNER: ["display:read", "read", "settings", "invite", "members", "crm:write"],
+  OWNER: [
+    "modules:manage",
+    "display:read",
+    "read",
+    "settings",
+    "invite",
+    "members",
+    "crm:write",
+  ],
   ADMIN: ["display:read", "read", "settings", "invite", "crm:write"],
   MEMBER: ["display:read", "read"],
 };

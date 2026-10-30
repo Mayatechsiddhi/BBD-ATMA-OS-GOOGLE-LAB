@@ -1,5 +1,7 @@
 import { z } from "zod";
-import { withOrganization, audit } from "@/modules/organizations/access";
+import { audit } from "@/modules/organizations/access";
+import { moduleAccess } from "@/modules/entitlements/access";
+const withOrganization = moduleAccess("crm");
 import { AccessError } from "@/modules/organizations/policy";
 import type { Prisma } from "@/generated/prisma/client";
 import {

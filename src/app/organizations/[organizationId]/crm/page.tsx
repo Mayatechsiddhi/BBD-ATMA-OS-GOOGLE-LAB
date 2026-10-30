@@ -15,7 +15,7 @@ export default async function CRM({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { organizationId } = await params;
-  const { user, role } = await organizationContext(organizationId);
+  const { user, role } = await organizationContext(organizationId, "crm");
   const contacts = await listContacts(user.id, organizationId);
   const { error } = await searchParams;
   return (

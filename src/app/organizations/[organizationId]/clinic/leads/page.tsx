@@ -21,7 +21,7 @@ export default async function Leads({
   }>;
 }) {
   const { organizationId: org } = await params;
-  const { user, role } = await organizationContext(org);
+  const { user, role } = await organizationContext(org, "clinic");
   const query = await searchParams;
   const parsed = leadQuery.safeParse({
     search: query.q,

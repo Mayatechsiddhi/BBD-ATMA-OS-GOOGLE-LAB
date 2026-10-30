@@ -14,6 +14,7 @@ describe("tenant permissions", () => {
     undefined,
   ] as const) {
     for (const permission of [
+      "modules:manage",
       "display:read",
       "read",
       "settings",
@@ -27,7 +28,9 @@ describe("tenant permissions", () => {
           (role !== "DISPLAY" &&
             (permission === "read" ||
               role === "OWNER" ||
-              (role === "ADMIN" && permission !== "members"))));
+              (role === "ADMIN" &&
+                permission !== "members" &&
+                permission !== "modules:manage"))));
       it(`${role ?? "outsider"}: ${permission} ${allowed ? "allowed" : "denied"}`, () => {
         if (allowed)
           expect(() => authorize(role as Role, permission)).not.toThrow();

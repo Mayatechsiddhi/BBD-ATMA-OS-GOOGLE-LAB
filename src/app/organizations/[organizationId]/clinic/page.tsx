@@ -10,7 +10,7 @@ export default async function ClinicDashboard({
   params: Promise<{ organizationId: string }>;
 }) {
   const { organizationId: org } = await params;
-  const { user } = await organizationContext(org);
+  const { user } = await organizationContext(org, "clinic");
   const data = await dashboard(user.id, org);
   const base = `/organizations/${org}/clinic`;
   const active = data.leads

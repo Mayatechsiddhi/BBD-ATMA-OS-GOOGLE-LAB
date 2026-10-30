@@ -7,6 +7,7 @@ import { verifyFixtureEmail } from "./browser-verification";
 import { adminDb } from "./local-admin-db";
 import { callingBrowser } from "./browser-calling";
 import { clinicBrowser } from "./browser-clinic";
+import { entitlementsBrowser } from "./browser-entitlements";
 import { opportunitiesBrowser } from "./browser-opportunities";
 import { browserClientIP, verifyAuthRateLimits } from "./browser-client-ip";
 import { db } from "../src/lib/db";
@@ -374,6 +375,13 @@ try {
       )),
     );
   }
+  if (focus === "all")
+    await entitlementsBrowser(
+      owner.page,
+      foreign.context,
+      recipient.page,
+      org.id,
+    );
   if (focus !== "invitation") {
     sensitive.push(
       ...(await callingBrowser({
@@ -418,7 +426,7 @@ try {
         }),
       );
     const scenarioLocation = error.stack?.match(
-      /browser-(?:clinic|calling|invitations|slots|schedules|opportunities)\.ts:\d+:\d+/,
+      /browser-(?:clinic|calling|invitations|slots|schedules|opportunities|entitlements)\.ts:\d+:\d+/,
     )?.[0];
     if (scenarioLocation)
       console.error(`Browser scenario location: ${scenarioLocation}`);

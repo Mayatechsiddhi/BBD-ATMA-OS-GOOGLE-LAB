@@ -71,10 +71,19 @@ beforeAll(async () => {
   expect(await enforceRuntimePrivileges(owner, role)).toBe(false);
   for (const migration of readdirSync("prisma/migrations")
     .filter((name) => /^\d/.test(name))
-    .sort())
+    .sort()) {
+    if (migration === "202610310001_module_entitlements") {
+      await owner.query(
+        `INSERT INTO public."Organization" (id,name,slug,"updatedAt") VALUES ('module-legacy','Synthetic pre-entitlement organization','module-legacy',CURRENT_TIMESTAMP)`,
+      );
+      await owner.query(
+        `INSERT INTO public."Contact" (id,"organizationId",name,email,"updatedAt") VALUES ('module-legacy-contact','module-legacy','Synthetic preserved contact','module-legacy@example.com',CURRENT_TIMESTAMP)`,
+      );
+    }
     await owner.query(
       readFileSync(`prisma/migrations/${migration}/migration.sql`, "utf8"),
     );
+  }
   await enforceRuntimePrivileges(owner, role);
 });
 afterAll(async () => {
@@ -89,6 +98,50 @@ afterAll(async () => {
   await root.end();
 });
 describe("runtime privilege contract on isolated PostgreSQL fixtures", () => {
+  it("backfills only working modules without changing pre-migration organization/contact data", async () => {
+    const rows = await owner.query(
+      `SELECT "moduleId",enabled,version FROM public."OrganizationModule" WHERE "organizationId"='module-legacy' ORDER BY "moduleId"`,
+    );
+    expect(rows.rows).toEqual([
+      { moduleId: "clinic", enabled: true, version: 0 },
+      { moduleId: "crm", enabled: true, version: 0 },
+    ]);
+    expect(
+      (
+        await owner.query(
+          `SELECT name FROM public."Organization" WHERE id='module-legacy'`,
+        )
+      ).rows,
+    ).toEqual([{ name: "Synthetic pre-entitlement organization" }]);
+    expect(
+      (
+        await owner.query(
+          `SELECT name,email FROM public."Contact" WHERE id='module-legacy-contact'`,
+        )
+      ).rows,
+    ).toEqual([
+      {
+        name: "Synthetic preserved contact",
+        email: "module-legacy@example.com",
+      },
+    ]);
+  });
+  it("requires coordinated artifact rollback once new entitlement grants exist", async () => {
+    const previous = Object.fromEntries(
+      Object.entries(runtimeTables).filter(
+        ([name]) => name !== "OrganizationModule",
+      ),
+    );
+    const sql = runtimePrivilegeAuditSQL("$1").replace(
+      JSON.stringify(runtimeTables),
+      JSON.stringify(previous),
+    );
+    const drift = await owner.query(sql, [role]);
+    expect(
+      drift.rows.some((row) => row.object.includes("OrganizationModule")),
+    ).toBe(true);
+    await expect(assertRuntimeReadiness(runtime)).resolves.toBeUndefined();
+  });
   it("keeps the PR6 rollback contract fail-closed after opportunity grants, without revoking current grants", async () => {
     const previous = Object.fromEntries(
       Object.entries(runtimeTables).filter(([name]) => name !== "Opportunity"),

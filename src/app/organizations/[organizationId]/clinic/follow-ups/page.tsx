@@ -20,7 +20,7 @@ export default async function FollowUps({
   searchParams: Promise<{ status?: string; error?: string }>;
 }) {
   const { organizationId: org } = await params;
-  const { user, role } = await organizationContext(org);
+  const { user, role } = await organizationContext(org, "clinic");
   const query = await searchParams;
   const parsed = followUpStatus.safeParse(query.status ?? "OPEN");
   const tasks = parsed.success

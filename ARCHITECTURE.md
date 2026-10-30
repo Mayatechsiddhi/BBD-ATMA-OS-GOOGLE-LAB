@@ -1,3 +1,7 @@
+## Phase 1 module control plane — 31 October 2026
+
+The reviewed registry distinguishes available CRM/Clinic capabilities from planned modules. OrganizationModule persists per-organization flags and optimistic versions, extending the FORCE-RLS inventory to thirteen tables. CRM, clinic scheduling, appointments and calling services enforce both current membership and entitlement under the existing organization lock/transaction. OWNER-only access changes serialize with these operations and append an audit event atomically. Missing rows and unavailable modules deny access. This is tenant feature administration, not subscription billing or a platform superadmin. See docs/MODULE_ENTITLEMENTS.md for scope and additive migration/cutover limits; historical sections below describe earlier milestones.
+
 # BBD Master ATMA OS architecture
 
 CRM opportunities reuse Contact through a composite tenant foreign key and extend the protected inventory to twelve tables. Capture uses a tenant-scoped request UUID; stage mutations use optimistic versions inside the existing organization transaction/audit boundary. Existing CRM contacts and Clinic OS remain their current modules; no second identity, queue, scheduling or UI framework is added. See docs/OPPORTUNITIES.md for implemented scope.
@@ -17,7 +21,7 @@ A Next.js App Router application using React, TypeScript, PostgreSQL, Prisma's P
 5. Organization queries include tenant predicates. Nonmembers receive a generic 404 at page boundaries. A browser-supplied organization identifier grants no authority.
 6. Mutations and audit events commit atomically. Role changes and sign-outs take effect on the next session/membership read; there is no cookie session cache.
 
-The service's actorId parameter is trusted server context, not an API input. Importing the raw Prisma client in new tenant-facing routes bypasses this boundary and is prohibited. PostgreSQL FORCE RLS now protects Organization, Membership, Invitation, AuditEvent, Contact, ClinicLead, Appointment, FollowUp, Patient, Doctor, QueueToken and Opportunity under a separate unprivileged runtime role. `withActor` installs transaction-local actor/organization/invitation context and the current PostgreSQL transaction ID. RLS checks current membership and fails closed without that context. Runtime startup/health/transactions reject owner, elevated or incompletely migrated connections. The migration owner is explicitly privileged; narrow SECURITY DEFINER membership lookup/bootstrap functions run as that owner with fixed search paths and explicit grants. See `docs/TENANT_ISOLATION.md` for the threat model: arbitrary SQL execution with runtime credentials can forge the trusted actor context, so RLS is not authentication and does not contain a fully compromised application.
+The service's actorId parameter is trusted server context, not an API input. Importing the raw Prisma client in new tenant-facing routes bypasses this boundary and is prohibited. PostgreSQL FORCE RLS now protects Organization, Membership, Invitation, AuditEvent, Contact, ClinicLead, Appointment, FollowUp, Patient, Doctor, QueueToken, Opportunity and OrganizationModule under a separate unprivileged runtime role. `withActor` installs transaction-local actor/organization/invitation context and the current PostgreSQL transaction ID. RLS checks current membership and fails closed without that context. Runtime startup/health/transactions reject owner, elevated or incompletely migrated connections. The migration owner is explicitly privileged; narrow SECURITY DEFINER membership lookup/bootstrap functions run as that owner with fixed search paths and explicit grants. See `docs/TENANT_ISOLATION.md` for the threat model: arbitrary SQL execution with runtime credentials can forge the trusted actor context, so RLS is not authentication and does not contain a fully compromised application.
 
 ## Data model
 
@@ -45,7 +49,7 @@ There is no implicit platform-wide superadmin. A workspace dashboard is organiza
 
 ## Module boundaries
 
-`src/modules/organizations` owns the identity/tenancy foundation. `src/modules/crm` implements the working client lifecycle. Both use the shared transactional organization access boundary in `organizations/access.ts`. `src/modules/registry.ts` is a catalog of planned boundaries, not executable business functionality:
+`src/modules/organizations` owns the identity/tenancy foundation. `src/modules/crm` implements the working client lifecycle. Both use the shared transactional organization access boundary in `organizations/access.ts`. `src/modules/registry.ts` now catalogs available CRM/Clinic and planned boundaries. Entitlements never implement a planned capability:
 
 - ATMA: tenant context retrieval, model policy and inference audit.
 - Agents: tool registry, scoped credentials, bounded execution and approval requirements.

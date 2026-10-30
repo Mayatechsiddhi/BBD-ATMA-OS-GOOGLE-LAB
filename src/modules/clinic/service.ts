@@ -1,5 +1,7 @@
 import type { Prisma } from "@/generated/prisma/client";
-import { withOrganization, audit } from "@/modules/organizations/access";
+import { audit } from "@/modules/organizations/access";
+import { moduleAccess } from "@/modules/entitlements/access";
+const withOrganization = moduleAccess("clinic");
 import { AccessError } from "@/modules/organizations/policy";
 import {
   appointmentInput,

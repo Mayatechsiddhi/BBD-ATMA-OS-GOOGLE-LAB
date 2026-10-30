@@ -26,7 +26,7 @@ export default async function Opportunities({
   }>;
 }) {
   const { organizationId: org } = await params;
-  const { user, role } = await organizationContext(org);
+  const { user, role } = await organizationContext(org, "crm");
   const query = await searchParams;
   const parsed = opportunityQuery.safeParse({
     search: query.q,

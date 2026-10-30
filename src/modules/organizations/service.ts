@@ -14,18 +14,30 @@ import {
   memberRole,
   tokenInput,
 } from "./validation";
+import { initialModuleIds, type ModuleId } from "@/modules/registry";
+import { assertModuleAccess } from "@/modules/entitlements/access";
 const hash = (token: string) =>
   createHash("sha256").update(token).digest("hex");
 export async function createOrganization(userId: string, input: unknown) {
   const data = organizationInput.parse(input);
-  return withActor(userId, (tx) =>
-    bootstrapOrganization(
+  return withActor(userId, async (tx) => {
+    const org = await bootstrapOrganization(
       tx,
       randomBytes(16).toString("hex"),
       data.name,
       data.slug,
-    ),
-  );
+    );
+    await setOrganizationContext(tx, org.id);
+    await tx.organizationModule.createMany({
+      data: initialModuleIds.map((moduleId) => ({
+        organizationId: org.id,
+        moduleId,
+        enabled: true,
+      })),
+    });
+    await audit(tx, org.id, userId, "organization.modules_initialized");
+    return org;
+  });
 }
 export async function listOrganizations(userId: string) {
   return withActor(userId, (tx) =>
@@ -36,34 +48,41 @@ export async function listOrganizations(userId: string) {
     }),
   );
 }
-export async function getOrganization(userId: string, organizationId: string) {
-  return withOrganization(userId, organizationId, "read", async (tx, role) => ({
-    organization: await tx.organization.findUniqueOrThrow({
-      where: { id: organizationId },
-    }),
-    role,
-    members: await tx.membership.findMany({
-      where: { organizationId },
-      include: { user: { select: { name: true, email: true } } },
-      orderBy: { createdAt: "asc" },
-    }),
-    invitations:
-      role === "MEMBER"
-        ? []
-        : await tx.invitation.findMany({
-            where: {
-              organizationId,
-              acceptedAt: null,
-              expiresAt: { gt: new Date() },
-            },
-            select: { id: true, email: true, role: true, expiresAt: true },
-          }),
-    events: await tx.auditEvent.findMany({
-      where: { organizationId },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    }),
-  }));
+export async function getOrganization(
+  userId: string,
+  organizationId: string,
+  moduleId?: ModuleId,
+) {
+  return withOrganization(userId, organizationId, "read", async (tx, role) => {
+    if (moduleId) await assertModuleAccess(tx, organizationId, moduleId);
+    return {
+      organization: await tx.organization.findUniqueOrThrow({
+        where: { id: organizationId },
+      }),
+      role,
+      members: await tx.membership.findMany({
+        where: { organizationId },
+        include: { user: { select: { name: true, email: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+      invitations:
+        role === "MEMBER"
+          ? []
+          : await tx.invitation.findMany({
+              where: {
+                organizationId,
+                acceptedAt: null,
+                expiresAt: { gt: new Date() },
+              },
+              select: { id: true, email: true, role: true, expiresAt: true },
+            }),
+      events: await tx.auditEvent.findMany({
+        where: { organizationId },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      }),
+    };
+  });
 }
 export async function updateOrganization(
   userId: string,

@@ -30,7 +30,7 @@ export default async function Schedules({
   searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   const { organizationId: org } = await params;
-  const { user, role } = await organizationContext(org);
+  const { user, role } = await organizationContext(org, "clinic");
   const doctors = await doctorSchedules(user.id, org);
   const query = await searchParams;
   const writable = role === "OWNER" || role === "ADMIN";

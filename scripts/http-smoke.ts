@@ -191,6 +191,53 @@ try {
   }
   assert.equal((await request("/organizations/foreign-tenant-id")).status, 404);
 
+  // Exercise actual Next Server Actions, including stale/captured form denial.
+  const modulePath = location + "/modules";
+  const moduleForm = async (id: string) =>
+    actionForm(
+      await (await request(modulePath)).text(),
+      `text:name="moduleId" value="${id}"`,
+    );
+  const disableCRM = await moduleForm("crm");
+  assert.equal(
+    (await request(modulePath, { method: "POST", body: disableCRM })).status,
+    303,
+  );
+  assert.equal((await request(crmPath)).status, 404);
+  assert.equal((await request(crmPath + "/opportunities")).status, 404);
+  const blockedClient = await request(crmPath, {
+    method: "POST",
+    body: clientForm,
+  });
+  assert.equal(blockedClient.status, 303);
+  assert.ok(blockedClient.headers.get("location")?.includes("permission"));
+  assert.equal(await db.contact.count({ where: { organizationId: orgId } }), 1);
+  const stale = await request(modulePath, { method: "POST", body: disableCRM });
+  assert.ok(
+    decodeURIComponent(stale.headers.get("location")!).includes(
+      "Module access changed",
+    ),
+  );
+  assert.equal(
+    (
+      await request(modulePath, {
+        method: "POST",
+        body: await moduleForm("crm"),
+      })
+    ).status,
+    303,
+  );
+  assert.equal((await request(crmPath)).status, 200);
+  assert.equal(
+    await db.auditEvent.count({
+      where: { organizationId: orgId, action: "module.crm.disabled" },
+    }),
+    1,
+  );
+  console.log(
+    "PASS HTTP entitlement disable/re-enable, captured CRM POST denial, stale form rejection and atomic audit",
+  );
+
   const clinicBase = location + "/clinic";
   const clinicLeadForm = actionForm(
     await (await request(clinicBase + "/leads")).text(),
@@ -284,6 +331,10 @@ try {
     await (await request(bLocation + "/settings")).text(),
     "name",
   );
+  const bModule = actionForm(
+    await (await request(bLocation + "/modules")).text(),
+    'text:name="moduleId" value="crm"',
+  );
   const bLead = actionForm(
     await (await request(bLocation + "/crm")).text(),
     "email",
@@ -354,6 +405,29 @@ try {
     assert.ok(!body.includes(`Private B ${id}`));
     assert.ok(!body.includes(`Private client B ${id}`));
   }
+  const deniedModule = await request(bLocation + "/modules", {
+    method: "POST",
+    body: bModule,
+  });
+  assert.equal(deniedModule.status, 303);
+  assert.ok(
+    decodeURIComponent(deniedModule.headers.get("location")!).includes(
+      "Access denied",
+    ),
+  );
+  assert.equal(
+    (
+      await db.organizationModule.findUniqueOrThrow({
+        where: {
+          organizationId_moduleId: { organizationId: bOrg, moduleId: "crm" },
+        },
+      })
+    ).enabled,
+    true,
+  );
+  console.log(
+    "PASS HTTP foreign-session entitlement Server Action denied without grant mutation",
+  );
   bSettings.set("name", "Foreign settings attack");
   bTransition.set("status", "QUALIFIED");
   for (const [path, body] of [

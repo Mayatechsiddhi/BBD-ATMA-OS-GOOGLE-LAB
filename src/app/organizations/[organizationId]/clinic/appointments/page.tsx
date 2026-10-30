@@ -15,7 +15,7 @@ export default async function Appointments({
   searchParams: Promise<{ day?: string; error?: string }>;
 }) {
   const { organizationId: org } = await params;
-  const { user, role } = await organizationContext(org);
+  const { user, role } = await organizationContext(org, "clinic");
   const query = await searchParams,
     day = query.day ?? clinicDate();
   let valid = true;

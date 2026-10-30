@@ -26,7 +26,7 @@ export default async function LeadDetail({
   params: Promise<{ organizationId: string; leadId: string }>;
 }) {
   const { organizationId: org, leadId } = await params;
-  const { user, role } = await organizationContext(org);
+  const { user, role } = await organizationContext(org, "clinic");
   const data = await getLead(user.id, org, leadId).catch((e) => {
     if (e instanceof AccessError) notFound();
     throw e;

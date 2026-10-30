@@ -75,6 +75,7 @@ model Organization {
   slug String @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  moduleEntitlements OrganizationModule[]
   memberships Membership[]
   invitations Invitation[]
   auditEvents AuditEvent[]
@@ -291,4 +292,16 @@ model QueueToken {
   @@unique([organizationId,id])
   @@unique([organizationId,day,number])
   @@index([organizationId,day,doctorId,status,number])
+}
+
+// Deployment availability lives in the reviewed registry; rows grant tenant access only.
+model OrganizationModule {
+  organizationId String
+  moduleId String
+  enabled Boolean @default(false)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  @@id([organizationId,moduleId])
 }

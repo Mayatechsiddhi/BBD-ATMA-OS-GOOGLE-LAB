@@ -1,3 +1,7 @@
+## Phase 1 — tenant module entitlements
+
+Implemented locally on feat/tenant-module-entitlements from f2618c5: reviewed module availability, tenant-persisted flags, owner-only versioned/audited changes, transaction-enforced CRM/Clinic/calling access and additive migration. No billing, external engines, merge or deployment. Validation and outstanding security/rollout gates: docs/MODULE_ENTITLEMENTS.md. New business modules must integrate this gate before becoming available.
+
 # Persistent implementation roadmap
 
 ## Audit follow-up — security/audit-medium-hardening

@@ -5,6 +5,10 @@ export const runtimeTables: Record<
   string,
   { privileges: string[]; update?: string[] }
 > = {
+  OrganizationModule: {
+    privileges: ["SELECT", "INSERT"],
+    update: ["enabled", "version", "updatedAt"],
+  },
   Opportunity: {
     privileges: ["SELECT", "INSERT"],
     update: ["stage", "version", "updatedAt"],

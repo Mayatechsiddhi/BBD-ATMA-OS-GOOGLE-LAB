@@ -1,6 +1,8 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
-import { withOrganization, audit } from "@/modules/organizations/access";
+import { audit } from "@/modules/organizations/access";
+import { moduleAccess } from "@/modules/entitlements/access";
+const withOrganization = moduleAccess("clinic");
 import { AccessError } from "@/modules/organizations/policy";
 import { activeAppointments, ClinicError } from "./workflow";
 import {

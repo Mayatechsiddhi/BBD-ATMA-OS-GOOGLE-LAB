@@ -119,9 +119,9 @@ const ownership = new pg.Client({ connectionString: migration.toString() });
 try {
   await ownership.connect();
   const tables = await ownership.query(
-    `SELECT pg_get_userbyid(relowner) AS owner FROM pg_class WHERE oid IN ('public."Organization"'::regclass,'public."Membership"'::regclass,'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass,'public."Patient"'::regclass,'public."Doctor"'::regclass,'public."QueueToken"'::regclass,'public."Opportunity"'::regclass,'public."OrganizationModule"'::regclass)`,
+    `SELECT pg_get_userbyid(relowner) AS owner FROM pg_class WHERE oid IN ('public."Organization"'::regclass,'public."Membership"'::regclass,'public."Invitation"'::regclass,'public."AuditEvent"'::regclass,'public."Contact"'::regclass,'public."ClinicLead"'::regclass,'public."Appointment"'::regclass,'public."FollowUp"'::regclass,'public."Patient"'::regclass,'public."Doctor"'::regclass,'public."QueueToken"'::regclass,'public."Opportunity"'::regclass,'public."OrganizationModule"'::regclass,'public."OutboxEvent"'::regclass)`,
   );
-  if (tables.rowCount !== 13 || tables.rows.some((r) => r.owner !== owner))
+  if (tables.rowCount !== 14 || tables.rows.some((r) => r.owner !== owner))
     throw new Error("Unexpected table owners in migration verification");
   const funcs = await ownership.query(
     "SELECT pg_get_userbyid(p.proowner) AS owner FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='bbd_private' AND p.prosecdef",

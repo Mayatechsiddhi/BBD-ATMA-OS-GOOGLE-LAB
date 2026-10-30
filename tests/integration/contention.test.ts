@@ -61,6 +61,7 @@ describe("tenant lock contention and scoped load", () => {
     for (const permission of [
       "read",
       "display:read",
+      "events:read",
       "crm:write",
       "members",
     ] as const) {
@@ -69,7 +70,9 @@ describe("tenant lock contention and scoped load", () => {
           { mode: string }[]
         >`SELECT mode FROM pg_locks WHERE locktype='advisory' AND pid=pg_backend_pid()`;
         expect(locks.map((x) => x.mode)).toEqual([
-          permission === "read" || permission === "display:read"
+          permission === "read" ||
+          permission === "display:read" ||
+          permission === "events:read"
             ? "ShareLock"
             : "ExclusiveLock",
         ]);

@@ -13,7 +13,11 @@ export async function withOrganization<T>(
   return withActor(
     userId,
     async (tx) => {
-      if (permission === "read" || permission === "display:read")
+      if (
+        permission === "read" ||
+        permission === "display:read" ||
+        permission === "events:read"
+      )
         await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtextextended(${organizationId}, 0))`;
       else
         await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${organizationId}, 0))`;

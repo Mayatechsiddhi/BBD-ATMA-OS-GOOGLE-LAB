@@ -75,6 +75,7 @@ model Organization {
   slug String @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  outboxEvents OutboxEvent[]
   moduleEntitlements OrganizationModule[]
   memberships Membership[]
   invitations Invitation[]
@@ -156,6 +157,7 @@ model Opportunity {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  events OutboxEvent[]
   contact Contact @relation(fields:[organizationId,contactId], references:[organizationId,id], onDelete:Cascade, map:"Opportunity_contact_tenant_fkey")
   @@unique([organizationId,id])
   @@unique([organizationId,requestKey])
@@ -304,4 +306,20 @@ model OrganizationModule {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
   @@id([organizationId,moduleId])
+}
+
+model OutboxEvent {
+  id String @id @db.Uuid
+  organizationId String
+  sequence BigInt
+  eventType String
+  schemaVersion Int
+  occurredAt DateTime @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(3)
+  opportunityId String
+  payload Json
+  organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  opportunity Opportunity @relation(fields:[organizationId,opportunityId], references:[organizationId,id], onDelete:Cascade, map:"OutboxEvent_opportunity_tenant_fkey")
+  @@unique([organizationId,id])
+  @@unique([organizationId,sequence])
+  @@unique([organizationId,eventType,opportunityId,schemaVersion], map:"OutboxEvent_semantic_key")
 }

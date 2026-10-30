@@ -98,6 +98,46 @@ afterAll(async () => {
   await root.end();
 });
 describe("runtime privilege contract on isolated PostgreSQL fixtures", () => {
+  it("grants only append/read on the event outbox and rejects missing INSERT readiness", async () => {
+    for (const privilege of [
+      "UPDATE",
+      "DELETE",
+      "TRUNCATE",
+      "TRIGGER",
+      "REFERENCES",
+    ]) {
+      const { rows } = await owner.query(
+        `SELECT has_table_privilege($1,'public."OutboxEvent"',$2) AS allowed`,
+        [role, privilege],
+      );
+      expect(rows[0].allowed).toBe(false);
+    }
+    await owner.query(
+      `REVOKE INSERT ON public."OutboxEvent" FROM ${identifier(role)}`,
+    );
+    try {
+      await expect(assertRuntimeReadiness(runtime)).rejects.toThrow(
+        "missing required",
+      );
+    } finally {
+      await enforceRuntimePrivileges(owner, role);
+    }
+    await expect(assertRuntimeReadiness(runtime)).resolves.toBeUndefined();
+  });
+  it("preserves fail-closed old-artifact behavior when new outbox grants exist", async () => {
+    const previous = Object.fromEntries(
+      Object.entries(runtimeTables).filter(([name]) => name !== "OutboxEvent"),
+    );
+    const sql = runtimePrivilegeAuditSQL("$1").replace(
+      JSON.stringify(runtimeTables),
+      JSON.stringify(previous),
+    );
+    expect(
+      (await owner.query(sql, [role])).rows.some((row) =>
+        row.object.includes("OutboxEvent"),
+      ),
+    ).toBe(true);
+  });
   it("backfills only working modules without changing pre-migration organization/contact data", async () => {
     const rows = await owner.query(
       `SELECT "moduleId",enabled,version FROM public."OrganizationModule" WHERE "organizationId"='module-legacy' ORDER BY "moduleId"`,

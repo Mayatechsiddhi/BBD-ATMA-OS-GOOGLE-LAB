@@ -14,6 +14,7 @@ describe("tenant permissions", () => {
     undefined,
   ] as const) {
     for (const permission of [
+      "events:read",
       "modules:manage",
       "display:read",
       "read",

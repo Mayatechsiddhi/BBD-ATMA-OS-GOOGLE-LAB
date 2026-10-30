@@ -80,6 +80,28 @@ export async function opportunitiesBrowser(
     }),
     1,
   );
+  const events = await adminDb.outboxEvent.findMany({
+    where: { organizationId: org, opportunityId: deal.id },
+  });
+  assert.equal(
+    events.length,
+    1,
+    "Replayed real Server Action must emit one event",
+  );
+  assert.deepEqual(events[0].payload, { opportunityId: deal.id });
+  assert.equal(events[0].eventType, "crm.opportunity.created");
+  assert.equal(events[0].schemaVersion, 1);
+  const privatePage = await owner
+    .context()
+    .request.get(`${base}/opportunities`);
+  assert.equal(privatePage.status(), 200);
+  assert.ok(
+    !(await privatePage.text()).includes(events[0].id),
+    "Internal event ID must not be rendered in the CRM page",
+  );
+  console.log(
+    "PASS CRM browser create/replay commits exactly one safe outbox event without exposing its envelope",
+  );
   const denied = await foreign.request.post(request.url(), {
     headers,
     data: request.postDataBuffer()!,

@@ -140,6 +140,7 @@ describe("PostgreSQL tenant isolation under the actual unprivileged application 
       "Opportunity",
       "Organization",
       "OrganizationModule",
+      "OutboxEvent",
       "Patient",
       "QueueToken",
     ]);

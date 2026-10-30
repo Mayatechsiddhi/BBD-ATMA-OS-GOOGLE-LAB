@@ -1,5 +1,6 @@
 import type { Role } from "@/generated/prisma/client";
 export type Permission =
+  | "events:read"
   | "modules:manage"
   | "display:read"
   | "read"
@@ -15,6 +16,7 @@ export class AccessError extends Error {
 const permissions: Record<Role, readonly Permission[]> = {
   DISPLAY: ["display:read"],
   OWNER: [
+    "events:read",
     "modules:manage",
     "display:read",
     "read",
@@ -23,7 +25,14 @@ const permissions: Record<Role, readonly Permission[]> = {
     "members",
     "crm:write",
   ],
-  ADMIN: ["display:read", "read", "settings", "invite", "crm:write"],
+  ADMIN: [
+    "events:read",
+    "display:read",
+    "read",
+    "settings",
+    "invite",
+    "crm:write",
+  ],
   MEMBER: ["display:read", "read"],
 };
 export function authorize(role: Role | undefined, permission: Permission) {

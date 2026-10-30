@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { appendOpportunityCreated } from "@/modules/events/outbox";
 import { audit } from "@/modules/organizations/access";
 import { moduleAccess } from "@/modules/entitlements/access";
 const withOrganization = moduleAccess("crm");
@@ -59,6 +60,7 @@ export async function createOpportunity(
         requestKey: data.requestKey,
       },
     });
+    await appendOpportunityCreated(tx, org, opportunity.id);
     await audit(tx, org, actor, "crm.opportunity.created", opportunity.id);
     return opportunity;
   });

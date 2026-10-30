@@ -5,6 +5,7 @@ export const runtimeTables: Record<
   string,
   { privileges: string[]; update?: string[] }
 > = {
+  OutboxEvent: { privileges: ["SELECT", "INSERT"] },
   OrganizationModule: {
     privileges: ["SELECT", "INSERT"],
     update: ["enabled", "version", "updatedAt"],

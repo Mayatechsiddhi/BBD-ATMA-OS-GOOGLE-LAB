@@ -66,7 +66,7 @@ describe("artifact and migration readiness", () => {
   });
   it("uses every committed migration, rather than a hardcoded schema version", () => {
     const migrations = expectedMigrations();
-    expect(Object.keys(migrations)).toHaveLength(11);
+    expect(Object.keys(migrations)).toHaveLength(12);
     expect(
       Object.values(migrations).every((value) => /^[a-f0-9]{64}$/.test(value)),
     ).toBe(true);

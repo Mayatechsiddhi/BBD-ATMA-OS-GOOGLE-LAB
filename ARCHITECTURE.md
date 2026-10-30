@@ -1,3 +1,7 @@
+## Phase 2A — transactional tenant events
+
+Opportunity creation now appends an immutable OutboxEvent in the existing CRM-entitled organization transaction with its audit. Replay-safe opportunity creation emits once. The event contract contains only an opaque opportunity reference, version, UUID, database timestamp and per-organization sequence. A bounded owner/admin internal pull interface validates envelopes; no delivery, checkpoint, provider, worker or public event API is activated. The protected inventory is fourteen tables. See docs/EVENT_FOUNDATION.md for ordering, consumer-idempotency and coordinated migration/grant rollback requirements.
+
 ## Phase 1 module control plane — 31 October 2026
 
 The reviewed registry distinguishes available CRM/Clinic capabilities from planned modules. OrganizationModule persists per-organization flags and optimistic versions, extending the FORCE-RLS inventory to thirteen tables. CRM, clinic scheduling, appointments and calling services enforce both current membership and entitlement under the existing organization lock/transaction. OWNER-only access changes serialize with these operations and append an audit event atomically. Missing rows and unavailable modules deny access. This is tenant feature administration, not subscription billing or a platform superadmin. See docs/MODULE_ENTITLEMENTS.md for scope and additive migration/cutover limits; historical sections below describe earlier milestones.

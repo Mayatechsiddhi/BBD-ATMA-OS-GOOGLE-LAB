@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
   poweredByHeader: false,
+  // Next 16.4's optional WebSocket debug stream reproduced RSC decoder errors
+  // under repeated navigation/refresh. Keep debug data on the HTTP RSC stream;
+  // production transport, authorization and all security headers are unchanged.
+  experimental: { reactDebugChannel: false },
   logging: {
     // Next's default development traces include useActionState's previous token.
     serverFunctions: false,

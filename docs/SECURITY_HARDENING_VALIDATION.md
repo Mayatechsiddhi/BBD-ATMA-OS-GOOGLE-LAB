@@ -79,3 +79,7 @@ No timeouts occurred in those four measured arms. The shared-lock totals were 43
 4. **Separate scoped Low follow-ups:** denial-event logging without sensitive data, additional conflicting state-transition/direct-RLS cases, production browser coverage, per-account abuse policy, strict version parsing, reflected error-message handling and production CSP/HSTS review. Existing service-level state-transition rules are not database constraints. These were not expanded into unrelated feature work here.
 
 Environment: Node 24.19.0, npm 11.9.0, local Chromium 154.0.8037.57. Workflow YAML parsed (28 validation steps), captured CI shell passed bash syntax checking; actionlint was unavailable and was not installed. Hosted Chromium/version differences are not verified. Raw temporary server logs are deliberately excluded because they may contain synthetic private links.
+
+## Browser follow-up — 30 October 2026 IST
+
+See [BROWSER_FAILURE_INVESTIGATION.md](BROWSER_FAILURE_INVESTIGATION.md) for retained failing traces, the frozen baseline, the development RSC debug-transport workaround and exact post-change outcomes. Two complete suites passed (16 groups each); the aggregate matrix remains FAIL because one focused run timed out during email-verification setup before reaching its invitation scenario. Historical failure causation and production readiness are not claimed. The earlier failures and counts above remain evidence for commit 606e563; they have not been overwritten with rerun successes.

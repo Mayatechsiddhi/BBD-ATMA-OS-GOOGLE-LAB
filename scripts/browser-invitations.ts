@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { randomUUID, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { chromium, type BrowserContext, type Page } from "playwright-core";
+import { browserDiagnostics, browserSourceGuard } from "./browser-diagnostics";
+import { verifyFixtureEmail } from "./browser-verification";
 import { adminDb } from "./local-admin-db";
 import { callingBrowser } from "./browser-calling";
 import { clinicBrowser } from "./browser-clinic";
@@ -17,12 +19,18 @@ const run = randomUUID();
 const password = `Browser-${randomUUID()}!`;
 const userIds: string[] = [],
   orgIds: string[] = [];
+const focus = process.env.BROWSER_FOCUS ?? "all";
+assert.ok(["all", "invitation", "calling"].includes(focus));
+console.log(`Browser scenario selection: ${focus}`);
+const assertStableSources = browserSourceGuard();
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",
   headless: true,
 });
 const contexts: BrowserContext[] = [];
+const captures: (() => Promise<void>)[] = [];
 const sensitive = [password];
+const renderingErrors: string[] = [];
 const serverLog = process.env.BROWSER_SERVER_LOG;
 console.log(`Browser: ${browser.version()}`);
 async function account(label: string) {
@@ -32,8 +40,18 @@ async function account(label: string) {
       "x-forwarded-for": browserClientIP(run, contexts.length + 1),
     },
   });
+  context.on("page", (page) => {
+    page.on("pageerror", (error) => renderingErrors.push(error.name));
+    page.on("console", (message) => {
+      if (message.type() === "error" && message.text().includes("enqueueModel"))
+        renderingErrors.push("RSC decoder enqueueModel");
+    });
+  });
   context.setDefaultTimeout(15000);
   contexts.push(context);
+  captures.push(
+    await browserDiagnostics(context, process.env.BROWSER_ARTIFACT_DIR, label),
+  );
   const email = `browser-${label}-${run}@example.com`;
   const signup = await context.request.post("/api/auth/sign-up/email", {
     headers: {
@@ -62,11 +80,7 @@ async function account(label: string) {
   const verification = message.Text.match(/https?:\/\/[^\s]+/)[0];
   sensitive.push(verification);
   assert.equal(new URL(verification).origin, new URL(base).origin);
-  assert.ok(
-    [200, 302].includes(
-      (await context.request.get(verification, { maxRedirects: 0 })).status(),
-    ),
-  );
+  await verifyFixtureEmail(context.request, verification, user.id, label);
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.setDefaultNavigationTimeout(20000);
@@ -135,233 +149,244 @@ try {
     slug: `browser-b-${run}`,
   });
   orgIds.push(b.id);
-  const members = `/organizations/${org.id}/members`;
-  await owner.page.goto(members, { waitUntil: "commit" });
-  await owner.page.locator('form[data-hydrated="true"]').waitFor();
-  const started = Date.now();
-  const response = await submit(owner.page, recipient.email);
-  await owner.page.getByLabel("Private invitation link").waitFor();
-  const link = await owner.page
-    .getByLabel("Private invitation link")
-    .inputValue();
-  const token = new URL(link).hash.slice("#token=".length);
-  sensitive.push(token);
-  assert.match(token, /^[a-f0-9]{64}$/);
-  const invitation = await adminDb.invitation.findUniqueOrThrow({
-    where: { tokenHash: createHash("sha256").update(token).digest("hex") },
-  });
-  assert.equal(invitation.organizationId, org.id);
-  console.log(
-    `PASS hydrated invitation POST and private link (${Date.now() - started}ms)`,
-  );
-
-  // Replay the actual browser request with another tenant's session; action IDs are not authorization.
-  const captured = response.request();
-  const headers = await captured.allHeaders();
-  delete headers.cookie;
-  delete headers.host;
-  delete headers["content-length"];
-  const count = await adminDb.invitation.count({
-    where: { organizationId: org.id },
-  });
-  const denied = await foreign.context.request.post(captured.url(), {
-    headers,
-    data: captured.postDataBuffer()!,
-    timeout: 15000,
-  });
-  assert.equal(denied.status(), 200);
-  assert.ok((await denied.text()).includes("Access denied."));
-  assert.equal(
-    await adminDb.invitation.count({ where: { organizationId: org.id } }),
-    count,
-  );
-  console.log(
-    "PASS tenant B replay of tenant A invitation POST denied without persistence",
-  );
-
-  // Forge a real captured payload with correctly recomputed HTTP framing.
-  const originalBody = captured.postDataBuffer()!.toString();
-  const forgedBody = originalBody.replace(
-    /(name="[^"]*role"\r\n\r\n)MEMBER(\r\n)/,
-    "$1OWNER$2",
-  );
-  assert.notEqual(
-    forgedBody,
-    originalBody,
-    "Expected role field in actual React transport",
-  );
-  console.log(
-    "CHECK forged-role request with correctly framed captured payload",
-  );
-  const invalid = await owner.context.request.post(captured.url(), {
-    headers,
-    data: Buffer.from(forgedBody),
-    timeout: 15000,
-  });
-  assert.equal(invalid.status(), 200);
-  assert.ok(
-    (await invalid.text()).includes("Check the invitation email and role."),
-  );
-  console.log(
-    "PASS forged OWNER payload rejected without creating an invitation",
-  );
-  assert.equal(
-    await adminDb.invitation.count({ where: { organizationId: org.id } }),
-    count,
-  );
-  console.log("CHECK repeated submission from the same browser form");
-  await submit(owner.page, `repeat-${run}@example.com`);
-  await owner.page.waitForFunction((previous) => {
-    const input = document.querySelector<HTMLInputElement>(
-      'input[aria-label="Private invitation link"]',
+  if (focus !== "calling") {
+    const members = `/organizations/${org.id}/members`;
+    await owner.page.goto(members, { waitUntil: "commit" });
+    await owner.page.locator('form[data-hydrated="true"]').waitFor();
+    const started = Date.now();
+    const response = await submit(owner.page, recipient.email);
+    await owner.page.getByLabel("Private invitation link").waitFor();
+    const link = await owner.page
+      .getByLabel("Private invitation link")
+      .inputValue();
+    const token = new URL(link).hash.slice("#token=".length);
+    sensitive.push(token);
+    assert.match(token, /^[a-f0-9]{64}$/);
+    const invitation = await adminDb.invitation.findUniqueOrThrow({
+      where: { tokenHash: createHash("sha256").update(token).digest("hex") },
+    });
+    assert.equal(invitation.organizationId, org.id);
+    console.log(
+      `PASS hydrated invitation POST and private link (${Date.now() - started}ms)`,
     );
-    return input && input.value !== previous;
-  }, link);
-  const repeatedLink = await owner.page
-    .getByLabel("Private invitation link")
-    .inputValue();
-  assert.notEqual(repeatedLink, link);
-  sensitive.push(new URL(repeatedLink).hash.slice("#token=".length));
-  assert.equal(
-    await adminDb.invitation.count({ where: { organizationId: org.id } }),
-    count + 1,
-  );
-  console.log(
-    "PASS forged OWNER role rejected; same form recovers and creates a fresh invitation",
-  );
 
-  await foreign.page.goto(link, { waitUntil: "commit" });
-  await foreign.page.waitForFunction(() => location.hash === "");
-  await foreign.page.getByRole("button", { name: "Accept invitation" }).click();
-  await foreign.page.waitForURL("**/invitations?error=**", {
-    waitUntil: "commit",
-  });
-  assert.equal(
-    await adminDb.membership.count({
-      where: { organizationId: org.id, userId: foreign.userId },
-    }),
-    0,
-  );
-  await recipient.page.goto(link, { waitUntil: "commit" });
-  await recipient.page.waitForFunction(() => location.hash === "");
-  await recipient.page
-    .getByRole("button", { name: "Accept invitation" })
-    .click();
-  await recipient.page.waitForURL(`**/organizations/${org.id}`, {
-    waitUntil: "commit",
-  });
-  assert.equal(
-    (
-      await adminDb.membership.findUniqueOrThrow({
-        where: {
-          organizationId_userId: {
-            organizationId: org.id,
-            userId: recipient.userId,
-          },
-        },
-      })
-    ).role,
-    "MEMBER",
-  );
-  assert.ok(
-    (
-      await adminDb.invitation.findUniqueOrThrow({
-        where: { id: invitation.id },
-      })
-    ).acceptedAt,
-  );
-  await recipient.page.goto(link, { waitUntil: "commit" });
-  await recipient.page.waitForFunction(() => location.hash === "");
-  await recipient.page
-    .getByRole("button", { name: "Accept invitation" })
-    .click();
-  await recipient.page.waitForURL("**/invitations?error=**", {
-    waitUntil: "commit",
-  });
-  assert.equal(
-    await adminDb.auditEvent.count({
-      where: { organizationId: org.id, action: "invitation.accepted" },
-    }),
-    1,
-  );
-  console.log(
-    "PASS wrong recipient denied; matching recipient accepts; token replay denied; atomic membership/audit",
-  );
-
-  // A real HTML submission, without a custom approximation of React's form metadata.
-  const nojs = await browser.newContext({
-    baseURL: base,
-    javaScriptEnabled: false,
-    storageState: await owner.context.storageState(),
-  });
-  contexts.push(nojs);
-  const page = await nojs.newPage();
-  page.setDefaultTimeout(15000);
-  for (const path of [
-    "/sign-in",
-    "/sign-up",
-    "/forgot-password",
-    "/reset-password?token=fixture-only",
-  ]) {
-    await page.goto(path);
-    const form = page.locator("form").first();
-    assert.equal(await form.getAttribute("method"), "post");
+    // Replay the actual browser request with another tenant's session; action IDs are not authorization.
+    const captured = response.request();
+    const headers = await captured.allHeaders();
+    delete headers.cookie;
+    delete headers.host;
+    delete headers["content-length"];
+    const count = await adminDb.invitation.count({
+      where: { organizationId: org.id },
+    });
+    const denied = await foreign.context.request.post(captured.url(), {
+      headers,
+      data: captured.postDataBuffer()!,
+      timeout: 15000,
+    });
+    assert.equal(denied.status(), 200);
+    assert.ok((await denied.text()).includes("Access denied."));
     assert.equal(
-      await form
-        .locator("button[type=submit], button:not([type])")
-        .isDisabled(),
-      true,
+      await adminDb.invitation.count({ where: { organizationId: org.id } }),
+      count,
+    );
+    console.log(
+      "PASS tenant B replay of tenant A invitation POST denied without persistence",
+    );
+
+    // Forge a real captured payload with correctly recomputed HTTP framing.
+    const originalBody = captured.postDataBuffer()!.toString();
+    const forgedBody = originalBody.replace(
+      /(name="[^"]*role"\r\n\r\n)MEMBER(\r\n)/,
+      "$1OWNER$2",
+    );
+    assert.notEqual(
+      forgedBody,
+      originalBody,
+      "Expected role field in actual React transport",
+    );
+    console.log(
+      "CHECK forged-role request with correctly framed captured payload",
+    );
+    const invalid = await owner.context.request.post(captured.url(), {
+      headers,
+      data: Buffer.from(forgedBody),
+      timeout: 15000,
+    });
+    assert.equal(invalid.status(), 200);
+    assert.ok(
+      (await invalid.text()).includes("Check the invitation email and role."),
+    );
+    console.log(
+      "PASS forged OWNER payload rejected without creating an invitation",
+    );
+    assert.equal(
+      await adminDb.invitation.count({ where: { organizationId: org.id } }),
+      count,
+    );
+    console.log("CHECK repeated submission from the same browser form");
+    await submit(owner.page, `repeat-${run}@example.com`);
+    await owner.page.waitForFunction((previous) => {
+      const input = document.querySelector<HTMLInputElement>(
+        'input[aria-label="Private invitation link"]',
+      );
+      return input && input.value !== previous;
+    }, link);
+    const repeatedLink = await owner.page
+      .getByLabel("Private invitation link")
+      .inputValue();
+    assert.notEqual(repeatedLink, link);
+    sensitive.push(new URL(repeatedLink).hash.slice("#token=".length));
+    assert.equal(
+      await adminDb.invitation.count({ where: { organizationId: org.id } }),
+      count + 1,
+    );
+    console.log(
+      "PASS forged OWNER role rejected; same form recovers and creates a fresh invitation",
+    );
+
+    await foreign.page.goto(link, { waitUntil: "commit" });
+    await foreign.page.waitForFunction(() => location.hash === "");
+    await foreign.page
+      .getByRole("button", { name: "Accept invitation" })
+      .click();
+    await foreign.page.waitForURL("**/invitations?error=**", {
+      waitUntil: "commit",
+    });
+    assert.equal(
+      await adminDb.membership.count({
+        where: { organizationId: org.id, userId: foreign.userId },
+      }),
+      0,
+    );
+    await recipient.page.goto(link, { waitUntil: "commit" });
+    await recipient.page.waitForFunction(() => location.hash === "");
+    await recipient.page
+      .getByRole("button", { name: "Accept invitation" })
+      .click();
+    await recipient.page.waitForURL(`**/organizations/${org.id}`, {
+      waitUntil: "commit",
+    });
+    assert.equal(
+      (
+        await adminDb.membership.findUniqueOrThrow({
+          where: {
+            organizationId_userId: {
+              organizationId: org.id,
+              userId: recipient.userId,
+            },
+          },
+        })
+      ).role,
+      "MEMBER",
+    );
+    assert.ok(
+      (
+        await adminDb.invitation.findUniqueOrThrow({
+          where: { id: invitation.id },
+        })
+      ).acceptedAt,
+    );
+    await recipient.page.goto(link, { waitUntil: "commit" });
+    await recipient.page.waitForFunction(() => location.hash === "");
+    await recipient.page
+      .getByRole("button", { name: "Accept invitation" })
+      .click();
+    await recipient.page.waitForURL("**/invitations?error=**", {
+      waitUntil: "commit",
+    });
+    assert.equal(
+      await adminDb.auditEvent.count({
+        where: { organizationId: org.id, action: "invitation.accepted" },
+      }),
+      1,
+    );
+    console.log(
+      "PASS wrong recipient denied; matching recipient accepts; token replay denied; atomic membership/audit",
+    );
+
+    // A real HTML submission, without a custom approximation of React's form metadata.
+    const nojs = await browser.newContext({
+      baseURL: base,
+      javaScriptEnabled: false,
+      storageState: await owner.context.storageState(),
+    });
+    contexts.push(nojs);
+    captures.push(
+      await browserDiagnostics(nojs, process.env.BROWSER_ARTIFACT_DIR, "nojs"),
+    );
+    const page = await nojs.newPage();
+    page.setDefaultTimeout(15000);
+    for (const path of [
+      "/sign-in",
+      "/sign-up",
+      "/forgot-password",
+      "/reset-password?token=fixture-only",
+    ]) {
+      await page.goto(path);
+      const form = page.locator("form").first();
+      assert.equal(await form.getAttribute("method"), "post");
+      assert.equal(
+        await form
+          .locator("button[type=submit], button:not([type])")
+          .isDisabled(),
+        true,
+      );
+    }
+    console.log(
+      "PASS unhydrated authentication/recovery forms cannot submit credentials through GET",
+    );
+    await page.goto(members);
+    await submit(page, `nojs-${run}@example.com`);
+    await page.getByLabel("Private invitation link").waitFor();
+    assert.equal(
+      await adminDb.invitation.count({
+        where: { organizationId: org.id, email: `nojs-${run}@example.com` },
+      }),
+      1,
+    );
+    console.log(
+      "PASS native no-JavaScript invitation POST completes and persists exactly once",
+    );
+    sensitive.push(
+      new URL(
+        await page.getByLabel("Private invitation link").inputValue(),
+      ).hash.slice("#token=".length),
     );
   }
-  console.log(
-    "PASS unhydrated authentication/recovery forms cannot submit credentials through GET",
-  );
-  await page.goto(members);
-  await submit(page, `nojs-${run}@example.com`);
-  await page.getByLabel("Private invitation link").waitFor();
-  assert.equal(
-    await adminDb.invitation.count({
-      where: { organizationId: org.id, email: `nojs-${run}@example.com` },
-    }),
-    1,
-  );
-  console.log(
-    "PASS native no-JavaScript invitation POST completes and persists exactly once",
-  );
-  sensitive.push(
-    new URL(
-      await page.getByLabel("Private invitation link").inputValue(),
-    ).hash.slice("#token=".length),
-  );
-  sensitive.push(
-    ...(await clinicBrowser({
-      owner: owner.page,
-      foreign: foreign.context,
-      member: recipient.page,
-      org: org.id,
-      run,
-    })),
-  );
-  sensitive.push(
-    ...(await opportunitiesBrowser(
-      owner.page,
-      foreign.context,
-      recipient.page,
-      org.id,
-      run,
-    )),
-  );
-  sensitive.push(
-    ...(await callingBrowser({
-      owner: owner.page,
-      foreign: foreign.context,
-      screen: displayAccount.page,
-      org: org.id,
-      actor: owner.userId,
-      screenUser: displayAccount.userId,
-      run,
-    })),
-  );
+  if (focus === "all") {
+    sensitive.push(
+      ...(await clinicBrowser({
+        owner: owner.page,
+        foreign: foreign.context,
+        member: recipient.page,
+        org: org.id,
+        run,
+      })),
+    );
+    sensitive.push(
+      ...(await opportunitiesBrowser(
+        owner.page,
+        foreign.context,
+        recipient.page,
+        org.id,
+        run,
+      )),
+    );
+  }
+  if (focus !== "invitation") {
+    sensitive.push(
+      ...(await callingBrowser({
+        owner: owner.page,
+        foreign: foreign.context,
+        screen: displayAccount.page,
+        org: org.id,
+        actor: owner.userId,
+        screenUser: displayAccount.userId,
+        run,
+      })),
+    );
+  }
   if (serverLog) {
     const log = readFileSync(serverLog, "utf8");
     assert.ok(
@@ -413,7 +438,33 @@ try {
 } finally {
   // A browser/transport teardown error must not prevent fixture cleanup.
   try {
-    await browser.close();
+    try {
+      for (const capture of captures) {
+        try {
+          await capture();
+        } catch {
+          console.error("Browser artifact capture failed; details suppressed.");
+          process.exitCode = 1;
+        }
+      }
+      try {
+        assertStableSources();
+        assert.equal(
+          renderingErrors.length,
+          0,
+          "Browser rendering/decoder errors must not be ignored",
+        );
+      } catch (error) {
+        console.error(
+          error instanceof Error
+            ? error.message
+            : "Browser validation guard failed.",
+        );
+        process.exitCode = 1;
+      }
+    } finally {
+      await browser.close();
+    }
   } finally {
     try {
       await adminDb.organization.deleteMany({ where: { id: { in: orgIds } } });

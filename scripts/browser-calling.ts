@@ -186,10 +186,41 @@ export async function callingBrowser({
   assert.equal(denied.status(), 404);
   assert.ok(!(await denied.text()).includes(name));
   await row().getByRole("button", { name: "skip", exact: true }).click();
-  await screen
-    .getByTestId(`calling-${doctor.id}`)
-    .filter({ hasText: "—" })
-    .waitFor();
+  try {
+    await screen
+      .getByTestId(`calling-${doctor.id}`)
+      .filter({ hasText: "—" })
+      .waitFor();
+  } catch (error) {
+    try {
+      const persisted = await adminDb.queueToken.findUniqueOrThrow({
+        where: { id: token.id },
+      });
+      console.error(
+        "CALLING_SKIP_DIAGNOSTIC",
+        JSON.stringify({
+          status: persisted.status,
+          callCount: persisted.callCount,
+          skipAudits: await adminDb.auditEvent.count({
+            where: {
+              organizationId: org,
+              subjectId: token.id,
+              action: "clinic.token.skip",
+            },
+          }),
+          display: await screen
+            .getByTestId(`calling-${doctor.id}`)
+            .textContent({ timeout: 1000 })
+            .catch(() => "unavailable"),
+        }),
+      );
+    } catch {
+      console.error(
+        "CALLING_SKIP_DIAGNOSTIC unavailable; original failure preserved.",
+      );
+    }
+    throw error;
+  }
   await row().getByRole("button", { name: "call", exact: true }).click();
   await screen.getByText("Call 3", { exact: true }).waitFor();
   await row().getByRole("button", { name: "complete", exact: true }).click();

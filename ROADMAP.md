@@ -105,3 +105,8 @@ Implemented scope and validation: docs/DOCTOR_CALLING.md and docs/DOCTOR_CALLING
 - Authenticated near-real-time SSE and a patient-identity-free display with DISPLAY-only permissions.
 - Patient/reception pagination, tenant/RLS constraints, negative/concurrency regressions and browser transport coverage.
 - Next: independent review, the existing >100 appointment-picker/agenda/follow-up limits, doctor archiving/rosters and granular staff assignment, device/session controls, consent/retention, accessibility and multi-instance load/proxy tests. Deployment remains separately approval-gated.
+
+## Browser failure investigation — 30 October 2026 IST
+
+- [x] Preserve private traces, screenshots, console/network/SSE diagnostics and source-stability regressions; mitigate the reproduced development RSC decoder failure using the existing debug-transport fallback. Two complete post-change browser suites passed; see docs/BROWSER_FAILURE_INVESTIGATION.md.
+- [ ] Resolve the remaining verification-fixture GET timeout. Redacted API/persistence instrumentation is added and six isolated cycles passed; the historical cause remains unproven despite CPU-pressure correlation. The aggregate matrix remains failed; exact historical timeout attribution, hosted/production browser validation and independent security review remain open. No push, merge or deployment is authorized.

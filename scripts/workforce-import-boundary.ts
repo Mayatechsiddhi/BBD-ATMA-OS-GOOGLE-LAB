@@ -15,6 +15,19 @@ export function workforceImportViolations(
   const adapter = path.resolve(
     "src/modules/workforce-contract/mock-adapter.ts",
   );
+  const operatorFiles = [
+    "operator.tsx",
+    "operator-view.tsx",
+    "operator-policy.ts",
+  ].map((name) => path.resolve("scripts/workforce", name));
+  const operatorShared = [
+    "src/components/ui/card.tsx",
+    "src/components/ui/input.tsx",
+    "src/components/ui/button.tsx",
+    "src/lib/utils.ts",
+  ].map((name) => path.resolve(name));
+  const inOperator = operatorFiles.includes(file);
+  const inOperatorShared = operatorShared.includes(file);
   if (file.startsWith(root + path.sep)) return [];
   const failures: string[] = [];
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
@@ -32,6 +45,28 @@ export function workforceImportViolations(
     if (resolved) {
       const target = path.resolve(resolved.resolvedFileName);
       const inControl = file.startsWith(control + path.sep);
+      const operatorReader =
+        inOperator && target === path.join(control, "reader.ts");
+      if (
+        (inOperator || inOperatorShared) &&
+        (target.startsWith(path.resolve("src") + path.sep) ||
+          target.startsWith(path.resolve("scripts") + path.sep)) &&
+        !(
+          operatorShared.includes(target) ||
+          (inOperator && operatorFiles.includes(target)) ||
+          operatorReader
+        )
+      )
+        failures.push(
+          "Operator presentation may import only the read facade and pure UI",
+        );
+      // Only the existing execution controller may reference the deterministic adapter.
+      // A reader cannot reach it through any enclave helper or barrel either.
+      if (
+        (target === path.join(control, "control.ts") && file !== target) ||
+        (target === adapter && file !== path.join(control, "control.ts"))
+      )
+        failures.push("Read paths cannot import workforce execution controls");
       const inContracts = file.startsWith(contracts + path.sep);
       const inPoolOptions = file === poolOptions;
       // Every source edge is checked by the architecture test. Closing each
@@ -62,7 +97,12 @@ export function workforceImportViolations(
         (path
           .resolve(resolved.resolvedFileName)
           .startsWith(control + path.sep) &&
-          !file.startsWith(control + path.sep)) ||
+          !file.startsWith(control + path.sep) &&
+          !(
+            inOperator &&
+            path.resolve(resolved.resolvedFileName) ===
+              path.join(control, "reader.ts")
+          )) ||
         (path.resolve(resolved.resolvedFileName) === adapter &&
           !file.startsWith(control + path.sep)))
     )

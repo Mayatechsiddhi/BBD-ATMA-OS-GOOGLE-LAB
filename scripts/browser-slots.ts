@@ -1,3 +1,4 @@
+import { navigate } from "./browser-navigation";
 import assert from "node:assert/strict";
 import type { Page, BrowserContext } from "playwright-core";
 import { adminDb } from "./local-admin-db";
@@ -22,7 +23,7 @@ export async function slotsBrowser(
   const path = `/organizations/${org}/clinic/leads/${leadId}`;
   const day = clinicDate(new Date(Date.now() + 5 * 86400000));
   const open = async () => {
-    await owner.goto(path, { waitUntil: "commit" });
+    await navigate(owner, path, "slots-1", { waitUntil: "commit" });
     const panel = owner.getByRole("region", {
       name: "Appointment suggestions",
     });

@@ -20,14 +20,19 @@ for (const key of [
   )
     throw Error("Local isolated tests only");
 }
+const args = process.argv.slice(2);
+const operatorBrowser = args[0] === "--operator-browser";
+if (operatorBrowser) args.shift();
 const r = spawnSync(
   "node",
   [
     "node_modules/vitest/vitest.mjs",
     "run",
     "--config",
-    "vitest.workforce.config.ts",
-    ...process.argv.slice(2),
+    operatorBrowser
+      ? "vitest.workforce-browser.config.ts"
+      : "vitest.workforce.config.ts",
+    ...args,
   ],
   { env, stdio: "inherit" },
 );

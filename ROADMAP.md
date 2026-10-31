@@ -1,3 +1,7 @@
+## Local workforce operator increment
+
+Implemented for local review only: authenticated company-scoped task/approval/receipt/audit snapshots, privacy projections and uncertain claim status. No customer routes, new database, migration or execution control. Independent human review and production enrollment/MFA/ingress/recovery remain gates. See docs/WORKFORCE_OPERATOR_INTERFACE.md.
+
 ## Sprint 3 — durable workforce control plane
 
 Implemented locally from 41b6b89: separate internal identity/storage, independent approver and Founder consent, versioned atomic claims/receipts/audits, restart/multi-process safety and deterministic Engineering/Operations drafts. Preserve all six departments in the Founder → future Paperclip → BBD gateway architecture. Next gate is independent review and a separately approved private Founder/operator interface and authenticated metadata/draft gateway; no real agents or customer integration is activated. See docs/DURABLE_WORKFORCE_CONTROL_PLANE.md for exact validation and remaining production requirements.

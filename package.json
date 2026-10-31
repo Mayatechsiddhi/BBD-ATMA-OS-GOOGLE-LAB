@@ -40,7 +40,10 @@
     "db:workforce:generate": "PRISMA_SCHEMA_PATH=prisma/workforce/schema.prisma node scripts/prisma-wasm.mjs generate",
     "db:workforce:test:prepare": "node --import tsx scripts/workforce/prepare-test.mjs",
     "test:workforce": "node scripts/workforce/test.mjs",
-    "test:workforce:pooler": "node scripts/test-pooler.mjs --workforce"
+    "test:workforce:pooler": "node scripts/test-pooler.mjs --workforce",
+    "workforce:operator": "node --import tsx scripts/workforce/operator.tsx",
+    "test:workforce:operator:browser": "node scripts/workforce/test.mjs --operator-browser",
+    "test:browser:precompiled": "node --import tsx scripts/test-browser-precompiled.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

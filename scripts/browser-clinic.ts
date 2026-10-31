@@ -1,3 +1,4 @@
+import { navigate } from "./browser-navigation";
 import assert from "node:assert/strict";
 import type { BrowserContext, Page } from "playwright-core";
 import { adminDb } from "./local-admin-db";
@@ -26,12 +27,15 @@ export async function clinicBrowser({
     ["/schedules", "Doctor schedules"],
     ["/reception", "Reception & patient queues"],
   ]) {
-    await owner.goto(base + path, { waitUntil: "commit", timeout: 60000 });
+    await navigate(owner, base + path, "clinic-1", {
+      waitUntil: "commit",
+      timeout: 60000,
+    });
     await owner
       .getByRole("heading", { name: heading, exact: true })
       .waitFor({ timeout: 60000 });
   }
-  await owner.goto(base + "/leads", { waitUntil: "commit" });
+  await navigate(owner, base + "/leads", "clinic-2", { waitUntil: "commit" });
   await owner
     .getByLabel("Lead name", { exact: true })
     .fill(`Synthetic clinic lead ${run}`);
@@ -68,7 +72,7 @@ export async function clinicBrowser({
   await owner
     .getByRole("link", { name: `Synthetic clinic lead ${run}`, exact: true })
     .waitFor();
-  await owner.goto(leadPath, { waitUntil: "commit" });
+  await navigate(owner, leadPath, "clinic-3", { waitUntil: "commit" });
   await owner.getByRole("button", { name: "contacted", exact: true }).click();
   await owner.waitForURL(`**${base}/leads`, { waitUntil: "commit" });
   assert.equal(
@@ -76,7 +80,7 @@ export async function clinicBrowser({
       .status,
     "CONTACTED",
   );
-  await owner.goto(leadPath, { waitUntil: "commit" });
+  await navigate(owner, leadPath, "clinic-4", { waitUntil: "commit" });
   const start = new Date(Date.now() + 2 * 86400000),
     end = new Date(start.getTime() + 1800000);
   await owner.getByLabel("Practitioner or resource").fill("Synthetic Doctor");
@@ -168,7 +172,7 @@ export async function clinicBrowser({
     "PASS clinic browser cross-tenant pages and captured booking action denied without writes",
   );
 
-  await owner.goto(leadPath, { waitUntil: "commit" });
+  await navigate(owner, leadPath, "clinic-5", { waitUntil: "commit" });
   await owner.getByText("Reschedule appointment", { exact: true }).click();
   const reschedule = owner.locator("form").filter({
     has: owner.getByRole("button", { name: "Save reschedule", exact: true }),
@@ -213,7 +217,7 @@ export async function clinicBrowser({
     "Cancellation must persist after the UI updates",
   );
 
-  await owner.goto(leadPath, { waitUntil: "commit" });
+  await navigate(owner, leadPath, "clinic-6", { waitUntil: "commit" });
   await owner
     .getByLabel("Follow-up task", { exact: true })
     .fill(`Synthetic follow-up ${run}`);
@@ -236,13 +240,13 @@ export async function clinicBrowser({
   });
   assert.equal(followUp.status, "DONE");
   assert.ok(followUp.completedAt);
-  await owner.goto(base, { waitUntil: "commit" });
+  await navigate(owner, base, "clinic-7", { waitUntil: "commit" });
   await owner
     .getByRole("heading", { name: "Clinic dashboard", exact: true })
     .waitFor();
   assert.ok((await owner.textContent("main"))?.includes("Active leads"));
   await slotsBrowser(owner, foreign, org, leadId, run);
-  await member.goto(leadPath, { waitUntil: "commit" });
+  await navigate(member, leadPath, "clinic-8", { waitUntil: "commit" });
   await member
     .getByRole("heading", { name: `Synthetic clinic lead ${run}`, exact: true })
     .waitFor();

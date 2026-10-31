@@ -1,3 +1,7 @@
+## Local workforce read-only operator
+
+A separate loopback-only Node/React interface reuses the workforce identity, FORCE-RLS storage and pure BBD UI primitives. Its read facade uses PostgreSQL read-only transactions, fresh company authorization and shared advisory locks; it exposes no mutation controller or customer route. Authentication-session maintenance is the only POST. Payloads and raw member identities are omitted, claims remain uncertain, and task verification evidence is not fabricated. See docs/WORKFORCE_OPERATOR_INTERFACE.md; no production deployment or real agents are enabled.
+
 ## Durable internal workforce enclave
 
 A separate Better Auth/Prisma/PostgreSQL controller persists internal identities, company tasks, digest-bound independent approver/Founder consents, claims, receipts, pause/revocation and audits. Fixed Engineering/Operations mocks only; no customer routes, customer database access, live agents, external delivery or Paperclip installation. Five FORCE-RLS business tables live in a separate database; the fourteen customer tables and event/entitlement contracts remain unchanged. See docs/DURABLE_WORKFORCE_CONTROL_PLANE.md for concurrency limits and release gates.

@@ -47,6 +47,12 @@ jobs:
       - run: npm run test:pooler
       - run: npm run test:workforce:pooler
       - run: npm run build
+      - name: Test local read-only workforce operator in Chromium
+        shell: bash
+        run: |
+          browser_path="$(command -v chromium || command -v google-chrome || true)"
+          test -n "$browser_path"
+          CHROMIUM_PATH="$browser_path" npm run test:workforce:operator:browser
       - run: npm run test:auth-proxy
       - name: Test actual Next.js requests and Server Actions
         shell: bash

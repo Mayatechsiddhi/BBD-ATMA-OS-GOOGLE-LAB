@@ -1,3 +1,4 @@
+import { navigate } from "./browser-navigation";
 import assert from "node:assert/strict";
 import type { Page, BrowserContext } from "playwright-core";
 import { adminDb } from "./local-admin-db";
@@ -11,7 +12,7 @@ export async function scheduleBrowser(
   day: string,
 ) {
   const path = `/organizations/${org}/clinic/schedules`;
-  await owner.goto(path, { waitUntil: "commit" });
+  await navigate(owner, path, "schedules-1", { waitUntil: "commit" });
   await owner
     .getByRole("heading", { name: "Doctor schedules", exact: true })
     .waitFor();
@@ -108,9 +109,14 @@ export async function scheduleBrowser(
   await owner
     .getByRole("button", { name: `Remove leave ${leave}`, exact: true })
     .waitFor();
-  await owner.goto(`/organizations/${org}/clinic/leads/${leadId}`, {
-    waitUntil: "commit",
-  });
+  await navigate(
+    owner,
+    `/organizations/${org}/clinic/leads/${leadId}`,
+    "schedules-2",
+    {
+      waitUntil: "commit",
+    },
+  );
   const panel = owner.getByRole("region", { name: "Appointment suggestions" });
   await panel.locator('form[data-hydrated="true"]').waitFor();
   await panel.getByLabel("Suggestion doctor").selectOption(doctorId);
@@ -146,7 +152,7 @@ export async function scheduleBrowser(
     await panel.getByRole("button", { name: /Book suggested slot:/ }).count(),
     0,
   );
-  await owner.goto(path, { waitUntil: "commit" });
+  await navigate(owner, path, "schedules-3", { waitUntil: "commit" });
   const removed = owner.waitForResponse(
     (r) =>
       r.request().method() === "POST" && new URL(r.url()).pathname === path,

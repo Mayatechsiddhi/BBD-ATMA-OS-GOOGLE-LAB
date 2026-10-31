@@ -1,3 +1,5 @@
+import { fixtureClientHeaders } from "./browser-fixture-client";
+import { navigate } from "./browser-navigation";
 import assert from "node:assert/strict";
 import { randomUUID, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -16,7 +18,8 @@ import { createOrganization } from "../src/modules/organizations/service";
 const base = process.env.BETTER_AUTH_URL!;
 if (!["localhost", "127.0.0.1"].includes(new URL(base).hostname))
   throw new Error("Browser fixtures are local-only");
-const run = randomUUID();
+const run = process.env.BROWSER_RUN_ID ?? randomUUID();
+assert.match(run, /^[a-f0-9-]{36}$/);
 const password = `Browser-${randomUUID()}!`;
 const userIds: string[] = [],
   orgIds: string[] = [];
@@ -24,21 +27,39 @@ const focus = process.env.BROWSER_FOCUS ?? "all";
 assert.ok(["all", "invitation", "calling"].includes(focus));
 console.log(`Browser scenario selection: ${focus}`);
 const assertStableSources = browserSourceGuard();
-const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",
-  headless: true,
-});
+const cdp = process.env.BROWSER_CDP_URL;
+if (cdp)
+  assert.equal(
+    cdp,
+    "http://127.0.0.1:9223",
+    "Only the isolated loopback fixture browser is supported",
+  );
+const browser = cdp
+  ? await chromium.connectOverCDP(cdp)
+  : await chromium.launch({
+      executablePath: process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",
+      headless: true,
+    });
 const contexts: BrowserContext[] = [];
 const captures: (() => Promise<void>)[] = [];
 const sensitive = [password];
 const renderingErrors: string[] = [];
 const serverLog = process.env.BROWSER_SERVER_LOG;
+const mailpit = process.env.BROWSER_MAILPIT_URL ?? "http://127.0.0.1:8025";
+const mailpitURL = new URL(mailpit);
+assert.ok(
+  ["localhost", "127.0.0.1"].includes(mailpitURL.hostname) &&
+    mailpitURL.protocol === "http:" &&
+    !mailpitURL.username &&
+    !mailpitURL.password,
+  "Local capture-only mail service required",
+);
 console.log(`Browser: ${browser.version()}`);
 async function account(label: string) {
   const context = await browser.newContext({
     baseURL: base,
     extraHTTPHeaders: {
-      "x-forwarded-for": browserClientIP(run, contexts.length + 1),
+      ...fixtureClientHeaders(browserClientIP(run, contexts.length + 1)),
     },
   });
   context.on("page", (page) => {
@@ -68,15 +89,13 @@ async function account(label: string) {
   assert.equal(signup.status(), 200, "Real auth signup must succeed");
   const user = await adminDb.user.findUniqueOrThrow({ where: { email } });
   userIds.push(user.id);
-  const inbox = await (
-    await fetch("http://127.0.0.1:8025/api/v1/messages")
-  ).json();
+  const inbox = await (await fetch(`${mailpit}/api/v1/messages`)).json();
   const mail = inbox.messages.find((m: { To: { Address: string }[] }) =>
     m.To.some((t) => t.Address === email),
   );
   assert.ok(mail, "Verification must be delivered to local Mailpit");
   const message = await (
-    await fetch(`http://127.0.0.1:8025/api/v1/message/${mail.ID}`)
+    await fetch(`${mailpit}/api/v1/message/${mail.ID}`)
   ).json();
   const verification = message.Text.match(/https?:\/\/[^\s]+/)[0];
   sensitive.push(verification);
@@ -85,7 +104,7 @@ async function account(label: string) {
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.setDefaultNavigationTimeout(20000);
-  await page.goto("/sign-in");
+  await navigate(page, "/sign-in", "invitations-1");
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   const signedIn = page.waitForResponse(
@@ -152,7 +171,9 @@ try {
   orgIds.push(b.id);
   if (focus !== "calling") {
     const members = `/organizations/${org.id}/members`;
-    await owner.page.goto(members, { waitUntil: "commit" });
+    await navigate(owner.page, members, "invitations-2", {
+      waitUntil: "commit",
+    });
     await owner.page.locator('form[data-hydrated="true"]').waitFor();
     const started = Date.now();
     const response = await submit(owner.page, recipient.email);
@@ -246,7 +267,9 @@ try {
       "PASS forged OWNER role rejected; same form recovers and creates a fresh invitation",
     );
 
-    await foreign.page.goto(link, { waitUntil: "commit" });
+    await navigate(foreign.page, link, "invitations-3", {
+      waitUntil: "commit",
+    });
     await foreign.page.waitForFunction(() => location.hash === "");
     await foreign.page
       .getByRole("button", { name: "Accept invitation" })
@@ -260,7 +283,9 @@ try {
       }),
       0,
     );
-    await recipient.page.goto(link, { waitUntil: "commit" });
+    await navigate(recipient.page, link, "invitations-4", {
+      waitUntil: "commit",
+    });
     await recipient.page.waitForFunction(() => location.hash === "");
     await recipient.page
       .getByRole("button", { name: "Accept invitation" })
@@ -288,7 +313,9 @@ try {
         })
       ).acceptedAt,
     );
-    await recipient.page.goto(link, { waitUntil: "commit" });
+    await navigate(recipient.page, link, "invitations-5", {
+      waitUntil: "commit",
+    });
     await recipient.page.waitForFunction(() => location.hash === "");
     await recipient.page
       .getByRole("button", { name: "Accept invitation" })
@@ -310,6 +337,7 @@ try {
     const nojs = await browser.newContext({
       baseURL: base,
       javaScriptEnabled: false,
+      extraHTTPHeaders: fixtureClientHeaders(browserClientIP(run, 1)),
       storageState: await owner.context.storageState(),
     });
     contexts.push(nojs);
@@ -324,7 +352,7 @@ try {
       "/forgot-password",
       "/reset-password?token=fixture-only",
     ]) {
-      await page.goto(path);
+      await navigate(page, path, "invitations-6");
       const form = page.locator("form").first();
       assert.equal(await form.getAttribute("method"), "post");
       assert.equal(
@@ -337,7 +365,7 @@ try {
     console.log(
       "PASS unhydrated authentication/recovery forms cannot submit credentials through GET",
     );
-    await page.goto(members);
+    await navigate(page, members, "invitations-7");
     await submit(page, `nojs-${run}@example.com`);
     await page.getByLabel("Private invitation link").waitFor();
     assert.equal(

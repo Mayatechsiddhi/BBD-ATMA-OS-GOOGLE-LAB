@@ -1,3 +1,4 @@
+import { navigate } from "./browser-navigation";
 import assert from "node:assert/strict";
 import type { BrowserContext, Page } from "playwright-core";
 import { adminDb } from "./local-admin-db";
@@ -26,7 +27,7 @@ export async function callingBrowser({
     role: "DISPLAY",
   });
   await orgs.acceptInvitation(screenUser, invitation);
-  await owner.goto(base, { waitUntil: "commit" });
+  await navigate(owner, base, "calling-1", { waitUntil: "commit" });
   await owner.getByText(/Live queue connected/).waitFor();
   const doctorForm = owner.locator("form").filter({
     has: owner.getByRole("button", { name: "Add doctor queue", exact: true }),
@@ -58,7 +59,7 @@ export async function callingBrowser({
     .click();
   await owner.getByText(`${name} · +12025550103`, { exact: true }).waitFor();
   const observer = await owner.context().newPage();
-  await observer.goto(base, { waitUntil: "commit" });
+  await navigate(observer, base, "calling-2", { waitUntil: "commit" });
   await observer.getByText(/Live queue connected/).waitFor();
   const initialStream = await screen.evaluate(async (path) => {
     const abort = new AbortController();
@@ -100,7 +101,9 @@ export async function callingBrowser({
     initialStream.doctors.includes(doctor.id),
     "Display snapshot must include the tenant doctor",
   );
-  await screen.goto(`/display/${org}`, { waitUntil: "commit" });
+  await navigate(screen, `/display/${org}`, "calling-3", {
+    waitUntil: "commit",
+  });
   await screen
     .getByRole("article", { name: doctor.name, exact: true })
     .waitFor({ timeout: 60000 });

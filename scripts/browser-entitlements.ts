@@ -1,3 +1,4 @@
+import { navigate } from "./browser-navigation";
 import assert from "node:assert/strict";
 import type { Page, BrowserContext } from "playwright-core";
 import { adminDb } from "./local-admin-db";
@@ -9,7 +10,7 @@ export async function entitlementsBrowser(
   org: string,
 ) {
   const path = `/organizations/${org}/modules`;
-  await owner.goto(path, { waitUntil: "commit" });
+  await navigate(owner, path, "entitlements-1", { waitUntil: "commit" });
   await owner
     .getByRole("heading", { name: "Platform modules", exact: true })
     .waitFor();
@@ -21,7 +22,7 @@ export async function entitlementsBrowser(
       .count(),
     0,
   );
-  await member.goto(path, { waitUntil: "commit" });
+  await navigate(member, path, "entitlements-2", { waitUntil: "commit" });
   await member
     .getByRole("heading", { name: "Platform modules", exact: true })
     .waitFor();

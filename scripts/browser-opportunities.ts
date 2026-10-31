@@ -1,3 +1,4 @@
+import { navigate } from "./browser-navigation";
 import assert from "node:assert/strict";
 import type { Page, BrowserContext } from "playwright-core";
 import { adminDb } from "./local-admin-db";
@@ -9,14 +10,17 @@ export async function opportunitiesBrowser(
   run: string,
 ) {
   const base = `/organizations/${org}/crm`;
-  await owner.goto(`${base}/opportunities`, {
+  await navigate(owner, `${base}/opportunities`, "opportunities-1", {
     waitUntil: "commit",
     timeout: 60000,
   });
   await owner
     .getByRole("heading", { name: "Opportunities", exact: true })
     .waitFor({ timeout: 60000 });
-  await owner.goto(base, { waitUntil: "commit", timeout: 60000 });
+  await navigate(owner, base, "opportunities-2", {
+    waitUntil: "commit",
+    timeout: 60000,
+  });
   await owner
     .getByRole("heading", { name: "Client relationships", exact: true })
     .waitFor({ timeout: 60000 });
@@ -146,7 +150,9 @@ export async function opportunitiesBrowser(
   await owner
     .getByText("No opportunities match these filters.", { exact: true })
     .waitFor();
-  await member.goto(`${base}/opportunities`, { waitUntil: "commit" });
+  await navigate(member, `${base}/opportunities`, "opportunities-3", {
+    waitUntil: "commit",
+  });
   await member.getByRole("heading", { name: title, exact: true }).waitFor();
   assert.equal(
     await member

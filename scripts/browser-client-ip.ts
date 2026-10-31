@@ -1,3 +1,4 @@
+import { fixtureClientHeaders } from "./browser-fixture-client";
 import assert from "node:assert/strict";
 import type { BrowserContext } from "playwright-core";
 
@@ -28,7 +29,7 @@ export async function verifyAuthRateLimits(
       const response = await context.request.post(`/api/auth/${endpoint}`, {
         headers: {
           Origin: base,
-          "x-forwarded-for": shared.replace(/::1$/, `::${host}`),
+          ...fixtureClientHeaders(shared.replace(/::1$/, `::${host}`)),
         },
         data: {},
       });
@@ -45,7 +46,7 @@ export async function verifyAuthRateLimits(
       await response.body();
     }
     const other = await context.request.post(`/api/auth/${endpoint}`, {
-      headers: { Origin: base, "x-forwarded-for": independent },
+      headers: { Origin: base, ...fixtureClientHeaders(independent) },
       data: {},
     });
     assert.equal(

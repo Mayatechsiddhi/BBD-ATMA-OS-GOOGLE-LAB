@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { diagnoseHttpRequest } from "./http-diagnostics";
 import { randomUUID } from "node:crypto";
 import { adminDb as db } from "./local-admin-db";
 import { localInput, clinicDate } from "../src/modules/clinic/time";
@@ -13,19 +14,21 @@ let cookie = "";
 const userIds: string[] = [];
 const orgIds: string[] = [];
 async function request(path: string, init: RequestInit = {}) {
-  return fetch(base + path, {
-    // Dev-mode GETs can compile a route on first navigation. Mutations keep the
-    // 20-second bound, including the invitation/clinic POST regressions.
-    signal: AbortSignal.timeout(init.method === "POST" ? 20000 : 60000),
-    ...init,
-    redirect: "manual",
-    headers: {
-      Origin: base,
-      "x-forwarded-for": source,
-      ...(cookie ? { Cookie: cookie } : {}),
-      ...init.headers,
-    },
-  });
+  return diagnoseHttpRequest(init.method ?? "GET", path, () =>
+    fetch(base + path, {
+      // Dev-mode GETs can compile a route on first navigation. Mutations keep the
+      // 20-second bound, including the invitation/clinic POST regressions.
+      signal: AbortSignal.timeout(init.method === "POST" ? 20000 : 60000),
+      ...init,
+      redirect: "manual",
+      headers: {
+        Origin: base,
+        "x-forwarded-for": source,
+        ...(cookie ? { Cookie: cookie } : {}),
+        ...init.headers,
+      },
+    }),
+  );
 }
 async function auth(path: string, body: unknown) {
   return request(`/api/auth/${path}`, {

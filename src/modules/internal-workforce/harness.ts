@@ -103,6 +103,11 @@ export function createMockWorkforceHarness(input: unknown) {
   const records = new Map<string, Record>();
   const correlations = new Set<string>();
   const audit: Audit[] = [];
+  // At most one overflow pause (resume needs normal capacity) and one revoke
+  // per retained task. Never overwrite normal or emergency evidence.
+  const emergencyAudit: Audit[] = [];
+  let sequence = 0;
+  const denied = new Map<string, number>();
   let paused = false;
   const fail = (
     code: ConstructorParameters<typeof WorkforceError>[0],
@@ -130,10 +135,17 @@ export function createMockWorkforceHarness(input: unknown) {
   function reserve(slots: number) {
     if (audit.length + slots > policy.maxAudit) fail("CAPACITY");
   }
-  function append(actorId: string, action: string, record?: Record) {
-    audit.push({
+  function append(
+    actorId: string,
+    action: string,
+    record?: Record,
+    emergency = false,
+  ) {
+    const target =
+      emergency && audit.length >= policy.maxAudit ? emergencyAudit : audit;
+    target.push({
       schema: "bbd.workforce.audit.v1",
-      sequence: audit.length + 1,
+      sequence: ++sequence,
       companyId: policy.companyId,
       actorId,
       action,
@@ -169,7 +181,7 @@ export function createMockWorkforceHarness(input: unknown) {
     if (record.approvalState !== "APPROVED" || !record.approvalId)
       fail("APPROVAL_REQUIRED");
   }
-  return {
+  const api = {
     submit(actorId: string, input: unknown) {
       const actor = authorize(actorId, "submit");
       const request = taskRequest.parse(input);
@@ -241,12 +253,12 @@ export function createMockWorkforceHarness(input: unknown) {
       guard(record, input);
       if (record.approvalState !== "APPROVED")
         return fail("INVALID_TRANSITION");
-      reserve(1);
+      // Irreversible revocation has a reserved emergency evidence path.
       record.approvalState = "REVOKED";
       record.executionStatus = "CANCELLED";
       delete record.result;
       record.version++;
-      append(actorId, "task.revoked", record);
+      append(actorId, "task.revoked", record, true);
       return structuredClone(record);
     },
     execute(actorId: string, taskId: string, input: unknown) {
@@ -318,21 +330,96 @@ export function createMockWorkforceHarness(input: unknown) {
       authorize(actorId, "pause");
       const next = z.boolean().parse(value);
       if (next === paused) return;
-      reserve(1);
+      // Resuming can never bypass a full normal ledger. Emergency pause can.
+      if (!next) reserve(1);
       paused = next;
-      append(actorId, next ? "harness.paused" : "harness.resumed");
+      append(
+        actorId,
+        next ? "harness.paused" : "harness.resumed",
+        undefined,
+        next,
+      );
     },
     read(actorId: string, taskId: string) {
       return structuredClone(get(actorId, taskId, "read"));
     },
+    readDeniedTelemetry(actorId: string) {
+      const actor = authorize(actorId, "audit");
+      // Aggregates span departments; restricted approvers must not infer them.
+      if (
+        actor.departments.length !== 2 ||
+        new Set(actor.departments).size !== 2
+      )
+        return fail("ACCESS_DENIED");
+      return [...denied].map(([key, count]) => {
+        const [action, reason] = key.split(":");
+        return { action, reason, count };
+      });
+    },
     readAudit(actorId: string) {
       const actor = authorize(actorId, "audit");
       return structuredClone(
-        audit.filter(
-          (event) =>
-            !event.department || actor.departments.includes(event.department),
-        ),
+        [...audit, ...emergencyAudit]
+          .sort((a, b) => a.sequence - b.sequence)
+          .filter(
+            (event) =>
+              !event.department || actor.departments.includes(event.department),
+          ),
       );
     },
+  };
+  // Fixed method names and finite reason codes only: never retain actor/task
+  // selectors, input bodies, Zod issues or exception messages. Saturating counts
+  // bound storage regardless of caller IDs or denial volume (10 x 10 buckets).
+  function observed<A extends unknown[], R>(
+    action: string,
+    run: (...args: A) => R,
+  ) {
+    return (...args: A): R => {
+      try {
+        return run(...args);
+      } catch (error) {
+        const reason =
+          error instanceof WorkforceError &&
+          [
+            "ACCESS_DENIED",
+            "CONFLICT",
+            "INVALID_TRANSITION",
+            "APPROVAL_REQUIRED",
+            "EXPIRED",
+            "PAUSED",
+            "ATTEMPTS_EXHAUSTED",
+            "ALREADY_EXECUTED",
+            "CAPACITY",
+          ].includes(error.code)
+            ? error.code
+            : error instanceof z.ZodError
+              ? "INVALID_INPUT"
+              : undefined;
+        if (reason) {
+          const key = `${action}:${reason}`;
+          denied.set(
+            key,
+            Math.min(Number.MAX_SAFE_INTEGER, (denied.get(key) ?? 0) + 1),
+          );
+        }
+        throw error;
+      }
+    };
+  }
+  return {
+    submit: observed("submit", api.submit),
+    approve: observed("approve", api.approve),
+    reject: observed("reject", api.reject),
+    revoke: observed("revoke", api.revoke),
+    execute: observed("execute", api.execute),
+    retry: observed("retry", api.retry),
+    setPaused: observed("setPaused", api.setPaused),
+    read: observed("read", api.read),
+    readAudit: observed("readAudit", api.readAudit),
+    readDeniedTelemetry: observed(
+      "readDeniedTelemetry",
+      api.readDeniedTelemetry,
+    ),
   };
 }

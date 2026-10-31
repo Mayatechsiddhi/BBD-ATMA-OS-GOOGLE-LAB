@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMockWorkforceHarness } from "../../src/modules/internal-workforce/harness";
+import {
+  createMockWorkforceHarness,
+  WorkforceError,
+} from "../../src/modules/internal-workforce/harness";
 import * as adapter from "../../src/modules/internal-workforce/mock-adapter";
 import {
   actors,
@@ -335,5 +338,149 @@ describe("internal company-scoped contract harness composition (no database or t
     expect(
       run.readAudit(actors.approver).map((event) => event.executionStatus),
     ).toEqual(["QUEUED", "QUEUED", "RUNNING", "FAILED"]);
+  });
+  it("preserves emergency pause and revocation evidence at full normal capacity", () => {
+    const config = policy();
+    config.maxAudit = 4;
+    const run = createMockWorkforceHarness(config),
+      input = request();
+    let task = run.submit(actors.requester, input);
+    task = run.approve(actors.approver, input.taskId, commandFor(task));
+    task = run.execute(actors.operator, input.taskId, commandFor(task));
+    run.setPaused(actors.approver, true);
+    expect(() => run.setPaused(actors.approver, false)).toThrow("CAPACITY");
+    const revoked = run.revoke(actors.approver, input.taskId, commandFor(task));
+    expect(revoked.approvalState).toBe("REVOKED");
+    expect(revoked.result).toBeUndefined();
+    expect(() =>
+      run.revoke(actors.approver, input.taskId, commandFor(revoked)),
+    ).toThrow("INVALID_TRANSITION");
+    run.setPaused(actors.approver, true);
+    const audit = run.readAudit(actors.approver);
+    expect(audit.map((event) => event.sequence)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(audit.slice(-2).map((event) => event.action)).toEqual([
+      "harness.paused",
+      "task.revoked",
+    ]);
+    expect(() =>
+      run.execute(actors.operator, input.taskId, commandFor(revoked)),
+    ).toThrow("PAUSED");
+  });
+  it("actually denies expired retry without spending another attempt or changing state", () => {
+    vi.useFakeTimers();
+    const config = policy();
+    config.mockPlan.ENGINEERING.transientFailures = 1;
+    const run = createMockWorkforceHarness(config),
+      input = request();
+    let task = run.submit(actors.requester, input);
+    task = run.approve(actors.approver, input.taskId, commandFor(task));
+    task = run.execute(actors.operator, input.taskId, commandFor(task));
+    expect(task.executionStatus).toBe("RETRYABLE_FAILURE");
+    vi.advanceTimersByTime(600001);
+    expect(() =>
+      run.retry(actors.operator, input.taskId, commandFor(task)),
+    ).toThrow("EXPIRED");
+    expect(run.read(actors.requester, input.taskId)).toEqual(task);
+  });
+  it("denies paused retry and execution until an audited resume", () => {
+    const config = policy();
+    config.mockPlan.ENGINEERING.transientFailures = 1;
+    const run = createMockWorkforceHarness(config),
+      input = request();
+    let task = run.submit(actors.requester, input);
+    task = run.approve(actors.approver, input.taskId, commandFor(task));
+    task = run.execute(actors.operator, input.taskId, commandFor(task));
+    run.setPaused(actors.approver, true);
+    expect(() =>
+      run.retry(actors.operator, input.taskId, commandFor(task)),
+    ).toThrow("PAUSED");
+    expect(() =>
+      run.execute(actors.operator, input.taskId, commandFor(task)),
+    ).toThrow("PAUSED");
+    expect(run.read(actors.requester, input.taskId)).toEqual(task);
+    run.setPaused(actors.approver, false);
+    task = run.retry(actors.operator, input.taskId, commandFor(task));
+    expect(
+      run.execute(actors.operator, input.taskId, commandFor(task))
+        .executionStatus,
+    ).toBe("DRAFT_READY");
+  });
+  it("bounds privacy-safe denial counters independently of the state/audit ledger", () => {
+    const run = harness();
+    for (let n = 0; n < 1000; n++)
+      expect(() => run.read(randomUUID(), `private-task-${n}`)).toThrow(
+        "ACCESS_DENIED",
+      );
+    expect(() =>
+      run.submit(actors.requester, { password: "private-input" }),
+    ).toThrow();
+    expect(() => run.readDeniedTelemetry(actors.requester)).toThrow(
+      "ACCESS_DENIED",
+    );
+    expect(() => run.readDeniedTelemetry(actors.engineeringApprover)).toThrow(
+      "ACCESS_DENIED",
+    );
+    const counters = run.readDeniedTelemetry(actors.approver);
+    expect(counters).toContainEqual({
+      action: "read",
+      reason: "ACCESS_DENIED",
+      count: 1000,
+    });
+    expect(counters).toContainEqual({
+      action: "submit",
+      reason: "INVALID_INPUT",
+      count: 1,
+    });
+    expect(counters).toHaveLength(3);
+    expect(JSON.stringify(counters)).not.toMatch(/private-|password|00000000/);
+    counters[0].count = 0;
+    expect(run.readDeniedTelemetry(actors.approver)[0].count).toBe(1000);
+    expect(run.readAudit(actors.approver)).toEqual([]);
+  });
+  it("can revoke every approved task after the normal ledger fills without losing evidence", () => {
+    const config = policy();
+    config.maxAudit = 4;
+    config.maxTasks = 2;
+    const run = createMockWorkforceHarness(config);
+    const tasks = [request(), request("OPERATIONS")].map((input) => {
+      const submitted = run.submit(actors.requester, input);
+      return run.approve(actors.approver, input.taskId, commandFor(submitted));
+    });
+    for (const task of tasks) {
+      const revoked = run.revoke(
+        actors.approver,
+        task.request.taskId,
+        commandFor(task),
+      );
+      expect(revoked.executionStatus).toBe("CANCELLED");
+      expect(() =>
+        run.execute(actors.operator, task.request.taskId, commandFor(revoked)),
+      ).toThrow("APPROVAL_REQUIRED");
+    }
+    run.setPaused(actors.approver, true);
+    for (let n = 0; n < 10; n++) {
+      run.setPaused(actors.approver, true);
+      expect(() => run.setPaused(actors.approver, false)).toThrow("CAPACITY");
+    }
+    expect(run.readAudit(actors.approver)).toHaveLength(7);
+    expect(
+      run
+        .readAudit(actors.engineeringApprover)
+        .filter((event) => event.department === "OPERATIONS"),
+    ).toEqual([]);
+  });
+  it("never retains forged error codes as denial telemetry labels", () => {
+    const run = harness();
+    const input = request();
+    const error = new WorkforceError("ACCESS_DENIED");
+    Object.defineProperty(error, "code", { value: "private-forged-label" });
+    Object.defineProperty(input, "taskId", {
+      get() {
+        throw error;
+      },
+    });
+    expect(() => run.submit(actors.requester, input)).toThrow(error);
+    expect(run.readDeniedTelemetry(actors.approver)).toEqual([]);
+    expect(run.readAudit(actors.approver)).toEqual([]);
   });
 });

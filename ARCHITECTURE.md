@@ -1,3 +1,7 @@
+## Durable internal workforce enclave
+
+A separate Better Auth/Prisma/PostgreSQL controller persists internal identities, company tasks, digest-bound independent approver/Founder consents, claims, receipts, pause/revocation and audits. Fixed Engineering/Operations mocks only; no customer routes, customer database access, live agents, external delivery or Paperclip installation. Five FORCE-RLS business tables live in a separate database; the fourteen customer tables and event/entitlement contracts remain unchanged. See docs/DURABLE_WORKFORCE_CONTROL_PLANE.md for concurrency limits and release gates.
+
 ## Internal workforce contract harness
 
 A separate process-local mock in src/modules/internal-workforce implements strict versioned synthetic task/result contracts, company/role/department checks, digest-bound approval, manual bounded retries, idempotency and a bounded audit ledger. It performs no model, transport, filesystem, shell or tenant-database operation and is not connected to customer-facing ATMA or the CRM outbox. No endpoint, migration or dependency is added. See docs/WORKFORCE_CONTRACT_HARNESS.md for validation and the unimplemented production/Paperclip boundary.

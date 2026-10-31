@@ -18,6 +18,8 @@ describe("workforce mock application boundary", () => {
     'import x = require("./internal-workforce/harness");',
     'type X = import("./internal-workforce/contract").TaskRequest;',
     "const x = import(untrusted);",
+    'export * from "./workforce-control-plane/control";',
+    'import { mockAttempt } from "./workforce-contract/mock-adapter";',
   ])("rejects forbidden source edge: %s", (source) => {
     expect(workforceImportViolations(file, source, options)).not.toEqual([]);
   });
@@ -33,4 +35,16 @@ describe("workforce mock application boundary", () => {
         name,
       ).toEqual([]);
   });
+  it.each(["@/lib/db", "@/lib/auth", "@/lib/session", "@/modules/crm/service"])(
+    "denies controller dependency on customer module %s",
+    (target) => {
+      expect(
+        workforceImportViolations(
+          path.resolve("src/modules/workforce-control-plane/fixture.ts"),
+          `import {x} from "${target}";`,
+          options,
+        ),
+      ).not.toEqual([]);
+    },
+  );
 });

@@ -15,6 +15,7 @@ node scripts/init-dev.mjs
 docker compose -p bbd-atma-dev up -d --wait
 npm run db:runtime:local
 npm run db:generate
+npm run db:workforce:generate # generates only; does not connect or migrate
 npm run db:migrate
 npm run db:runtime:local
 npm run dev
@@ -26,6 +27,7 @@ If `binaries.prisma.sh` is restricted, use the reviewed npm-packaged official WA
 
 ```sh
 npm run db:generate:wasm
+npm run db:workforce:generate
 npm run db:migrate:wasm
 ```
 
@@ -86,3 +88,7 @@ Apply the additive clinic migration and runtime grants before starting the updat
 Runtime privilege drift: `npm run db:runtime:audit` performs a read-only local metadata audit. Provisioning now rejects excess privileges without revocation; see [the privilege contract and reviewed remediation process](docs/TENANT_ISOLATION.md#pr-4--privilege-drift-enforcement). `test:privileges` needs local administrative fixture access and creates/removes only uniquely named synthetic test databases/roles. Independent human security review remains required before merge.
 
 Clinic reception and calling: [workflow, display-only access, privacy and transport](docs/DOCTOR_CALLING.md). Open Clinic → Reception & calling for registration, doctor queues and daily tokens; use a verified DISPLAY-only account at `/display/[organizationId]` for a waiting-room device. Real database/SSE behavior and test evidence are recorded in [calling validation](docs/DOCTOR_CALLING_VALIDATION.md). No public display, deployment or messaging service is enabled.
+
+## Internal workforce control plane
+
+The durable internal workforce library uses a separate auth/database enclave and has no customer routes or live agents. Generate both Prisma clients after checkout; workforce fixture preparation/migrations are separate and local-test-only. See [the Sprint 3 implementation and release gates](docs/DURABLE_WORKFORCE_CONTROL_PLANE.md). No Paperclip, external delivery or production workforce deployment is activated.

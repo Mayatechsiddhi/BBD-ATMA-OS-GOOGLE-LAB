@@ -2,11 +2,27 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import pg from "pg";
 if (existsSync(".env")) process.loadEnvFile(".env");
-const fixture = new URL(process.env.TEST_DATABASE_URL);
-const runtime = new URL(process.env.TEST_RUNTIME_DATABASE_URL);
+const workforce = process.argv.includes("--workforce");
+if (workforce)
+  Object.assign(
+    process.env,
+    JSON.parse(
+      readFileSync("/tmp/bbd-workforce-control/environment.json", "utf8"),
+    ),
+  );
+const fixture = new URL(
+  workforce
+    ? process.env.WORKFORCE_TEST_DATABASE_URL
+    : process.env.TEST_DATABASE_URL,
+);
+const runtime = new URL(
+  workforce
+    ? process.env.WORKFORCE_RUNTIME_DATABASE_URL
+    : process.env.TEST_RUNTIME_DATABASE_URL,
+);
 for (const url of [fixture, runtime])
   if (
     !["localhost", "127.0.0.1"].includes(url.hostname) ||
@@ -14,7 +30,11 @@ for (const url of [fixture, runtime])
   )
     throw new Error("Pooler tests require dedicated local test databases");
 assert.equal(fixture.pathname, runtime.pathname);
-assert.equal(runtime.username, "bbd_runtime");
+assert.equal(
+  runtime.username,
+  workforce ? process.env.WORKFORCE_TEST_RUNTIME_ROLE : "bbd_runtime",
+);
+assert.match(runtime.username, /^[a-z][a-z0-9_]+$/);
 const password = decodeURIComponent(runtime.password);
 assert.match(password, /^[a-f0-9]+$/);
 const image =
@@ -55,10 +75,10 @@ try {
     "\n",
   )[0];
   assert.equal(version, "PgBouncer 1.26.1");
-  const config = `[databases]\n${runtime.pathname.slice(1)} = host=postgres port=5432 dbname=${runtime.pathname.slice(1)}\n[pgbouncer]\nlisten_addr = 0.0.0.0\nlisten_port = ${port}\nunix_socket_dir = /tmp\nauth_type = scram-sha-256\nauth_file = /tmp/bbd-users.txt\npool_mode = transaction\ndefault_pool_size = 1\nreserve_pool_size = 0\nmax_client_conn = 50\nmax_prepared_statements = 100\nadmin_users = bbd_runtime\npidfile = /tmp/bbd-pooler.pid\nlogfile = /tmp/bbd-pooler.log\nlog_connections = 0\nlog_disconnections = 0\n`;
+  const config = `[databases]\n${runtime.pathname.slice(1)} = host=postgres port=5432 dbname=${runtime.pathname.slice(1)}\n[pgbouncer]\nlisten_addr = 0.0.0.0\nlisten_port = ${port}\nunix_socket_dir = /tmp\nauth_type = scram-sha-256\nauth_file = /tmp/bbd-users.txt\npool_mode = transaction\ndefault_pool_size = 1\nreserve_pool_size = 0\nmax_client_conn = 50\nmax_prepared_statements = 100\nadmin_users = ${runtime.username}\npidfile = /tmp/bbd-pooler.pid\nlogfile = /tmp/bbd-pooler.log\nlog_connections = 0\nlog_disconnections = 0\n`;
   docker(
     ["exec", "-i", name, "sh", "-c", "umask 077; cat > /tmp/bbd-users.txt"],
-    `"bbd_runtime" "${password}"\n`,
+    `"${runtime.username}" "${password}"\n`,
   );
   docker(
     ["exec", "-i", name, "sh", "-c", "umask 077; cat > /tmp/bbd-pooler.ini"],
@@ -85,13 +105,22 @@ try {
   );
   const tests = spawnSync(
     "npx",
-    ["vitest", "run", "--config", "vitest.integration.config.ts"],
+    [
+      "vitest",
+      "run",
+      "--config",
+      workforce ? "vitest.workforce.config.ts" : "vitest.integration.config.ts",
+    ],
     {
       stdio: "inherit",
       env: {
         ...process.env,
-        DATABASE_URL: fixture.toString(),
-        RUNTIME_DATABASE_URL: runtime.toString(),
+        ...(workforce
+          ? { WORKFORCE_RUNTIME_DATABASE_URL: runtime.toString() }
+          : {
+              DATABASE_URL: fixture.toString(),
+              RUNTIME_DATABASE_URL: runtime.toString(),
+            }),
         NODE_ENV: "test",
       },
     },

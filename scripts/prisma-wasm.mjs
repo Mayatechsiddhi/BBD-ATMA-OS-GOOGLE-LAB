@@ -13,9 +13,12 @@ const { getGenerators } = require("@prisma/internals");
 const { PrismaClientTsGenerator } = require("@prisma/client-generator-ts");
 if (fs.existsSync(".env")) process.loadEnvFile(".env");
 const command = process.argv[2];
+const selectedSchema = path.resolve(
+  process.env.PRISMA_SCHEMA_PATH ?? "prisma/schema.prisma",
+);
 if (command === "generate") {
   const generators = await getGenerators({
-    schemaPath: path.resolve("prisma/schema.prisma"),
+    schemaPath: selectedSchema,
     registry: {
       "prisma-client": {
         type: "in-process",
@@ -75,7 +78,7 @@ if (command === "generate") {
       return adapter;
     },
   };
-  const schemaPath = path.resolve("prisma/schema.prisma"),
+  const schemaPath = selectedSchema,
     content = fs.readFileSync(schemaPath, "utf8");
   const engine = await runtime.SchemaEngine.new(
     { datamodels: [[schemaPath, content]] },
@@ -94,7 +97,7 @@ if (command === "generate") {
       });
       process.stdout.write(result.stdout);
     } else {
-      const baseDir = path.resolve("prisma/migrations");
+      const baseDir = path.join(path.dirname(selectedSchema), "migrations");
       const migrationDirectories = fs
         .readdirSync(baseDir, { withFileTypes: true })
         .filter((d) => d.isDirectory())

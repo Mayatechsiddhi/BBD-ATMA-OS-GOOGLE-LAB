@@ -9,6 +9,10 @@ export function workforceImportViolations(
   options: ts.CompilerOptions,
 ) {
   const root = path.resolve("src/modules/internal-workforce");
+  const control = path.resolve("src/modules/workforce-control-plane");
+  const adapter = path.resolve(
+    "src/modules/workforce-contract/mock-adapter.ts",
+  );
   if (file.startsWith(root + path.sep)) return [];
   const failures: string[] = [];
   const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true);
@@ -23,9 +27,31 @@ export function workforceImportViolations(
       options,
       ts.sys,
     ).resolvedModule;
+    if (resolved && file.startsWith(control + path.sep)) {
+      const target = path.resolve(resolved.resolvedFileName);
+      const allowed = [
+        control,
+        path.resolve("src/modules/workforce-contract"),
+        path.resolve("src/generated/workforce"),
+      ];
+      if (
+        target.startsWith(path.resolve("src") + path.sep) &&
+        !allowed.some((root) => target.startsWith(root + path.sep)) &&
+        target !== path.resolve("src/lib/database-options.ts")
+      )
+        failures.push(
+          "Workforce controller cannot import customer services or credentials",
+        );
+    }
     if (
       resolved &&
-      path.resolve(resolved.resolvedFileName).startsWith(root + path.sep)
+      (path.resolve(resolved.resolvedFileName).startsWith(root + path.sep) ||
+        (path
+          .resolve(resolved.resolvedFileName)
+          .startsWith(control + path.sep) &&
+          !file.startsWith(control + path.sep)) ||
+        (path.resolve(resolved.resolvedFileName) === adapter &&
+          !file.startsWith(control + path.sep)))
     )
       failures.push("Application cannot import synthetic workforce modules");
   };

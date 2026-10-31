@@ -22,5 +22,32 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: [
+      "src/modules/workforce-control-plane/**",
+      "src/modules/internal-workforce/**",
+      "src/modules/workforce-contract/**",
+      "src/generated/**",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "**/internal-workforce/**",
+                "**/workforce-control-plane/**",
+                "**/workforce-contract/mock-adapter",
+              ],
+              message:
+                "Internal workforce must not enter customer application code.",
+            },
+          ],
+        },
+      ],
+    },
+  },
   globalIgnores([".next/**", "next-env.d.ts", "src/generated/**"]),
 ]);

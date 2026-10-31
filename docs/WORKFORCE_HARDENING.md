@@ -42,3 +42,7 @@ Not tested/activated: fresh migration-owner provisioning on a new empty database
 Changed files: AGENTS.md; docs/WORKFORCE_CONTRACT_HARNESS.md; docs/WORKFORCE_HARDENING.md; eslint.config.mjs; scripts/http-smoke.ts; scripts/http-diagnostics.ts; scripts/workforce-import-boundary.ts; src/modules/internal-workforce/harness.ts; tests/integration/workforce-harness.test.ts; tests/unit/http-diagnostics.test.ts; tests/unit/workforce-boundary.test.ts.
 
 Raw synthetic logs remain private in /tmp/bbd-workforce-hardening; do not commit them. Independent human review remains required. No push, merge, Paperclip installation or deployment is authorized.
+
+## Sprint 3 follow-up
+
+The separate durable implementation and its remaining release gates are documented in [DURABLE_WORKFORCE_CONTROL_PLANE.md](DURABLE_WORKFORCE_CONTROL_PLANE.md). The original process-local harness and this historical validation evidence remain preserved. Do not mistake the durable implementation for an installed Paperclip or production workforce deployment.

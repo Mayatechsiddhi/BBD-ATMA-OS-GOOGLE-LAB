@@ -29,19 +29,23 @@ jobs:
       - run: docker compose -p bbd-atma-dev up -d --wait
       - run: npm run db:runtime:local
       - run: npm run db:generate:wasm
+      - run: npm run db:workforce:generate
       - run: npm run db:migrate:wasm
       - run: npm run db:migrate:wasm
       - run: npm run db:runtime:local
       - run: npm run db:test:prepare
+      - run: npm run db:workforce:test:prepare
       - run: npm run format:check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:privileges
       - run: npm run test:integration
+      - run: npm run test:workforce
       - run: npm run test:migrations
       - run: npm run test:migrations:fresh
       - run: npm run test:pooler
+      - run: npm run test:workforce:pooler
       - run: npm run build
       - run: npm run test:auth-proxy
       - name: Test actual Next.js requests and Server Actions

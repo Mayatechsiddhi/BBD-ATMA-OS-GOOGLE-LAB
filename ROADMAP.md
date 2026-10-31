@@ -1,3 +1,7 @@
+## Sprint 3 — durable workforce control plane
+
+Implemented locally from 41b6b89: separate internal identity/storage, independent approver and Founder consent, versioned atomic claims/receipts/audits, restart/multi-process safety and deterministic Engineering/Operations drafts. Preserve all six departments in the Founder → future Paperclip → BBD gateway architecture. Next gate is independent review and a separately approved private Founder/operator interface and authenticated metadata/draft gateway; no real agents or customer integration is activated. See docs/DURABLE_WORKFORCE_CONTROL_PLANE.md for exact validation and remaining production requirements.
+
 ## Internal workforce — contract harness
 
 Implemented on feat/workforce-contract-harness from c453ed0: two deterministic synthetic Engineering/Operations mocks, strict task/result identity and scope, explicit approval, bounded manual retries, denial/idempotency/state-machine checks and in-memory audit evidence. No real agents, Paperclip, customer data, worker, endpoint or production persistence is activated. Details and limitations: docs/WORKFORCE_CONTRACT_HARNESS.md. Future durable authorization, storage and adapter activation remain separately approved work; no push, merge or deployment is authorized.

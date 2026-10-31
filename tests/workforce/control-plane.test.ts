@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { beforeAll, afterAll, expect, it } from "vitest";
+import { beforeAll, afterAll, afterEach, expect, it, vi } from "vitest";
+import * as mockAdapter from "@/modules/workforce-contract/mock-adapter";
 import { hashPassword } from "better-auth/crypto";
-import { PrismaClient } from "@/generated/workforce/client";
+import { PrismaClient, type Prisma } from "@/generated/workforce/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { createWorkforceControlPlane } from "@/modules/workforce-control-plane/control";
 import {
@@ -29,6 +30,8 @@ const owner = new PrismaClient({
 });
 const runtime = workforceDatabase();
 let a: Awaited<ReturnType<typeof createWorkforceControlPlane>>, b: typeof a;
+const extraUsers: string[] = [];
+afterEach(() => vi.restoreAllMocks());
 const company = randomUUID(),
   foreign = randomUUID();
 const ids = {
@@ -140,7 +143,9 @@ afterAll(async () => {
   await owner.workforceCompany.deleteMany({
     where: { id: { in: [company, foreign] } },
   });
-  await owner.user.deleteMany({ where: { id: { in: Object.values(ids) } } });
+  await owner.user.deleteMany({
+    where: { id: { in: [...Object.values(ids), ...extraUsers] } },
+  });
   await Promise.all([
     a?.close(),
     b?.close(),
@@ -601,6 +606,211 @@ it("rejects migration-owner credentials as workforce runtime without authenticat
     );
   } finally {
     process.env.WORKFORCE_RUNTIME_DATABASE_URL = saved;
+  }
+});
+it.each([
+  ["approver", "active"],
+  ["approver", "version"],
+  ["founder", "active"],
+  ["founder", "version"],
+] as const)(
+  "denies pre-execution before adapter invocation after %s %s changes",
+  async (who, field) => {
+    let task = await approved();
+    task = await act("executor", "claim", cmd(task));
+    const where = {
+      companyId_userId: { companyId: company, userId: ids[who] },
+    };
+    const previous = await owner.workforceMember.findUniqueOrThrow({ where });
+    const spy = vi.spyOn(mockAdapter, "mockAttempt");
+    await owner.workforceMember.update({
+      where,
+      data:
+        field === "active" ? { active: false } : { version: { increment: 1 } },
+    });
+    try {
+      await expect(
+        a.completeMock(cookies.executor, company, {
+          ...cmd(task),
+          receiptId: task.receipt.id,
+        }),
+      ).rejects.toThrow();
+      expect(spy).not.toHaveBeenCalled();
+      const stored = await owner.workforceTask.findUniqueOrThrow({
+        where: { companyId_id: { companyId: company, id: task.id } },
+      });
+      expect(stored.status).toBe("RUNNING");
+      expect(stored.result).toBeNull();
+      expect(
+        (
+          await owner.workforceReceipt.findUniqueOrThrow({
+            where: { id: task.receipt.id },
+          })
+        ).status,
+      ).toBe("CLAIMED");
+    } finally {
+      await owner.workforceMember.update({
+        where,
+        data: { active: previous.active, version: previous.version },
+      });
+      spy.mockRestore();
+    }
+  },
+);
+async function targetMember() {
+  const id = randomUUID();
+  extraUsers.push(id);
+  await owner.user.create({
+    data: {
+      id,
+      name: "Synthetic audit subject",
+      email: `wf-${id}@example.com`,
+      emailVerified: true,
+    },
+  });
+  await owner.workforceMember.create({
+    data: { companyId: company, userId: id, role: "REQUESTER" },
+  });
+  return id;
+}
+it("attributes two member disables at the same version to the exact affected identities", async () => {
+  const targets: string[] = [await targetMember(), await targetMember()];
+  for (const userId of targets)
+    await act("founder", "disable-member", { userId, expectedVersion: 0 });
+  const audit = (await a.command(cookies.founder, company, "audit", {})) as {
+    action: string;
+    actorId: string;
+    subjectUserId: string | null;
+    version: number;
+  }[];
+  const events = audit.filter(
+    (event) =>
+      event.action === "member.disabled" &&
+      targets.includes(event.subjectUserId ?? ""),
+  );
+  expect(events).toHaveLength(2);
+  expect(events.map((event) => event.subjectUserId).sort()).toEqual(
+    [...targets].sort(),
+  );
+  expect(
+    events.every(
+      (event) => event.actorId === ids.founder && event.version === 1,
+    ),
+  ).toBe(true);
+});
+it("denies foreign or missing audit subjects without changing membership or audit", async () => {
+  const before = await owner.workforceAudit.count({
+    where: { companyId: company },
+  });
+  await expect(
+    act("founder", "disable-member", { userId: ids.other, expectedVersion: 0 }),
+  ).rejects.toThrow();
+  expect(
+    await owner.workforceAudit.count({ where: { companyId: company } }),
+  ).toBe(before);
+  expect(
+    (
+      await owner.workforceMember.findUniqueOrThrow({
+        where: { companyId_userId: { companyId: foreign, userId: ids.other } },
+      })
+    ).active,
+  ).toBe(true);
+  await expect(
+    owner.workforceAudit.create({
+      data: {
+        companyId: company,
+        actorId: ids.founder,
+        action: "member.disabled",
+        version: 1,
+      },
+    }),
+  ).rejects.toThrow();
+  await expect(
+    owner.workforceAudit.create({
+      data: {
+        companyId: company,
+        actorId: ids.founder,
+        subjectUserId: ids.other,
+        action: "member.disabled",
+        version: 1,
+      },
+    }),
+  ).rejects.toThrow();
+});
+it("rolls back member disablement, version and target audit when audit insertion fails", async () => {
+  const target = await targetMember();
+  await owner.$executeRawUnsafe(
+    `CREATE FUNCTION wf_private.fixture_fail_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW."subjectUserId"='${target}' AND NEW.action='member.disabled' THEN RAISE EXCEPTION 'synthetic audit failure'; END IF; RETURN NEW; END $$`,
+  );
+  await owner.$executeRawUnsafe(
+    'CREATE TRIGGER fixture_fail_audit BEFORE INSERT ON "WorkforceAudit" FOR EACH ROW EXECUTE FUNCTION wf_private.fixture_fail_audit()',
+  );
+  try {
+    await expect(
+      act("founder", "disable-member", { userId: target, expectedVersion: 0 }),
+    ).rejects.toThrow();
+  } finally {
+    await owner.$executeRawUnsafe(
+      'DROP TRIGGER fixture_fail_audit ON "WorkforceAudit"',
+    );
+    await owner.$executeRawUnsafe(
+      "DROP FUNCTION wf_private.fixture_fail_audit()",
+    );
+  }
+  const member = await owner.workforceMember.findUniqueOrThrow({
+    where: { companyId_userId: { companyId: company, userId: target } },
+  });
+  expect(member.active).toBe(true);
+  expect(member.version).toBe(0);
+  expect(
+    await owner.workforceAudit.count({
+      where: { companyId: company, subjectUserId: target },
+    }),
+  ).toBe(0);
+});
+it("enforces UTC session expiry for visibility and dispatch on a non-UTC pooled connection", async () => {
+  const task = await submitted();
+  const session = await owner.session.findFirstOrThrow({
+    where: { userId: ids.executor },
+  });
+  async function scope(tx: Prisma.TransactionClient) {
+    await tx.$executeRaw`SET LOCAL TIME ZONE 'Pacific/Honolulu'`;
+    await tx.$queryRaw`SELECT set_config('wf.transaction',pg_current_xact_id()::text,true),set_config('wf.actor',${ids.executor},true),set_config('wf.session',${session.id},true),set_config('wf.company',${company},true)`;
+  }
+  await runtime.$transaction(async (tx) => {
+    await scope(tx);
+    const [row] = await tx.$queryRaw<
+      { allowed: boolean }[]
+    >`SELECT wf_private.visible(${company}::uuid) AS allowed`;
+    expect(row.allowed).toBe(true);
+    const [read] = await tx.$queryRaw<
+      { value: { id: string } }[]
+    >`SELECT wf_private.dispatch('read',${company}::uuid,${JSON.stringify({ taskId: task.id })}::jsonb) AS value`;
+    expect(read.value.id).toBe(task.id);
+  });
+  await owner.session.update({
+    where: { id: session.id },
+    data: { expiresAt: new Date(Date.now() - 60000) },
+  });
+  try {
+    await runtime.$transaction(async (tx) => {
+      await scope(tx);
+      const [row] = await tx.$queryRaw<
+        { allowed: boolean }[]
+      >`SELECT wf_private.visible(${company}::uuid) AS allowed`;
+      expect(row.allowed).toBe(false);
+    });
+    await expect(
+      runtime.$transaction(async (tx) => {
+        await scope(tx);
+        await tx.$queryRaw`SELECT wf_private.dispatch('read',${company}::uuid,${JSON.stringify({ taskId: task.id })}::jsonb)`;
+      }),
+    ).rejects.toThrow();
+  } finally {
+    await owner.session.update({
+      where: { id: session.id },
+      data: { expiresAt: session.expiresAt },
+    });
   }
 });
 it("rechecks session revocation and principal revocation before the next action", async () => {

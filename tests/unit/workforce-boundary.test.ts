@@ -47,4 +47,57 @@ describe("workforce mock application boundary", () => {
       ).not.toEqual([]);
     },
   );
+  it.each([
+    [
+      "src/modules/workforce-contract/contract.ts",
+      'import {db} from "@/lib/db";',
+    ],
+    [
+      "src/modules/workforce-contract/nested/barrel.ts",
+      'export * from "@/modules/crm/service";',
+    ],
+    [
+      "src/modules/workforce-contract/fixtures.ts",
+      'const x = require("@/lib/auth");',
+    ],
+    [
+      "src/modules/workforce-contract/contract.ts",
+      'type X = import("@/lib/db").db;',
+    ],
+    ["src/lib/database-options.ts", 'const x = import("@/lib/session");'],
+    [
+      "src/lib/database-options.ts",
+      'export * from "@/modules/clinic/service";',
+    ],
+  ])(
+    "rejects a transitive customer edge in allowed enclave dependency %s",
+    (file, source) => {
+      expect(
+        workforceImportViolations(path.resolve(file), source, options),
+      ).not.toEqual([]);
+    },
+  );
+  it("retains the pure contract and pool-options dependency paths", () => {
+    expect(
+      workforceImportViolations(
+        path.resolve("src/modules/workforce-control-plane/control.ts"),
+        'import {taskRequest} from "../workforce-contract/contract";',
+        options,
+      ),
+    ).toEqual([]);
+    expect(
+      workforceImportViolations(
+        path.resolve("src/modules/workforce-control-plane/database.ts"),
+        'import {databasePoolOptions} from "@/lib/database-options";',
+        options,
+      ),
+    ).toEqual([]);
+    expect(
+      workforceImportViolations(
+        path.resolve("src/modules/workforce-contract/contract.ts"),
+        'import {digest} from "./fixtures";',
+        options,
+      ),
+    ).toEqual([]);
+  });
 });

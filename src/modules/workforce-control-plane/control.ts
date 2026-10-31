@@ -62,7 +62,13 @@ export async function createWorkforceControlPlane() {
     await db.$disconnect();
     throw new Error("Unsafe workforce runtime database");
   }
-  const auth = workforceIdentity(db);
+  let auth: ReturnType<typeof workforceIdentity>;
+  try {
+    auth = workforceIdentity(db);
+  } catch (error) {
+    await db.$disconnect();
+    throw error;
+  }
   async function scoped(
     headers: Headers,
     companyId: string,

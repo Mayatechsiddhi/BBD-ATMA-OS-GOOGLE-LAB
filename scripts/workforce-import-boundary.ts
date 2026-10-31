@@ -10,6 +10,8 @@ export function workforceImportViolations(
 ) {
   const root = path.resolve("src/modules/internal-workforce");
   const control = path.resolve("src/modules/workforce-control-plane");
+  const contracts = path.resolve("src/modules/workforce-contract");
+  const poolOptions = path.resolve("src/lib/database-options.ts");
   const adapter = path.resolve(
     "src/modules/workforce-contract/mock-adapter.ts",
   );
@@ -27,20 +29,31 @@ export function workforceImportViolations(
       options,
       ts.sys,
     ).resolvedModule;
-    if (resolved && file.startsWith(control + path.sep)) {
+    if (resolved) {
       const target = path.resolve(resolved.resolvedFileName);
-      const allowed = [
-        control,
-        path.resolve("src/modules/workforce-contract"),
-        path.resolve("src/generated/workforce"),
-      ];
+      const inControl = file.startsWith(control + path.sep);
+      const inContracts = file.startsWith(contracts + path.sep);
+      const inPoolOptions = file === poolOptions;
+      // Every source edge is checked by the architecture test. Closing each
+      // approved shared subtree also closes a controller -> shared -> customer
+      // path without trusting that shared modules will remain pure forever.
+      const allowed = inControl
+        ? target.startsWith(control + path.sep) ||
+          target.startsWith(contracts + path.sep) ||
+          target.startsWith(
+            path.resolve("src/generated/workforce") + path.sep,
+          ) ||
+          target === poolOptions
+        : inContracts
+          ? target.startsWith(contracts + path.sep)
+          : false;
       if (
+        (inControl || inContracts || inPoolOptions) &&
         target.startsWith(path.resolve("src") + path.sep) &&
-        !allowed.some((root) => target.startsWith(root + path.sep)) &&
-        target !== path.resolve("src/lib/database-options.ts")
+        !allowed
       )
         failures.push(
-          "Workforce controller cannot import customer services or credentials",
+          "Workforce enclave dependency cannot import customer services or credentials",
         );
     }
     if (

@@ -58,6 +58,7 @@ export async function assertWorkforceRuntime(tx: Prisma.TransactionClient) {
       protected: number;
       customer: boolean;
       functionDrift: boolean;
+      corrections: boolean;
     }[]
   >`
     SELECT (r.rolsuper OR r.rolbypassrls OR r.rolcreatedb OR r.rolcreaterole OR r.rolreplication
@@ -72,13 +73,17 @@ export async function assertWorkforceRuntime(tx: Prisma.TransactionClient) {
     (to_regclass('public."Contact"') IS NOT NULL OR to_regclass('public."Organization"') IS NOT NULL) AS customer,
     EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='wf_private' AND
       (EXISTS(SELECT 1 FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a WHERE a.grantee=0 AND a.privilege_type='EXECUTE') OR (has_function_privilege(current_user,p.oid,'EXECUTE') AND p.proname NOT IN ('visible','dispatch')))) AS "functionDrift"
+    , (EXISTS(SELECT 1 FROM pg_attribute a WHERE a.attrelid='public."WorkforceAudit"'::regclass AND a.attname='subjectUserId' AND a.atttypid='text'::regtype AND NOT a.attisdropped)
+      AND EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public."WorkforceAudit"'::regclass AND conname='workforce_audit_subject_fk' AND contype='f')
+      AND EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public."WorkforceAudit"'::regclass AND conname='workforce_audit_member_subject' AND contype='c')) AS corrections
     FROM pg_roles r WHERE r.rolname=current_user`;
   if (
     !role ||
     role.unsafe ||
     role.protected !== 5 ||
     role.customer ||
-    role.functionDrift
+    role.functionDrift ||
+    role.corrections !== true
   )
     throw new Error("Unsafe workforce runtime database");
   const [acl] = await tx.$queryRaw<{ unsafe: boolean }[]>`

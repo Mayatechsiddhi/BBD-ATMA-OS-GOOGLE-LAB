@@ -1,3 +1,7 @@
+## Internal workforce — contract harness
+
+Implemented on feat/workforce-contract-harness from c453ed0: two deterministic synthetic Engineering/Operations mocks, strict task/result identity and scope, explicit approval, bounded manual retries, denial/idempotency/state-machine checks and in-memory audit evidence. No real agents, Paperclip, customer data, worker, endpoint or production persistence is activated. Details and limitations: docs/WORKFORCE_CONTRACT_HARNESS.md. Future durable authorization, storage and adapter activation remain separately approved work; no push, merge or deployment is authorized.
+
 ## Phase 2A — tenant event foundation
 
 Implemented locally on feat/tenant-event-foundation from dd99e7e: transactional opportunity-created outbox, immutable safe contract, tenant RLS/grants, per-organization sequence and bounded internal batch reads. No workflow/marketing/AI/WhatsApp engine or delivery is implemented. Before any consumer activation, approve durable per-consumer checkpoints/idempotency, retries/dead letters, revocation, retention and provider/consent contracts. Exact validation and operational limits: docs/EVENT_FOUNDATION.md. No push, merge or deployment is authorized.

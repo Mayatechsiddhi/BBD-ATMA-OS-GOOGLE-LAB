@@ -1,3 +1,7 @@
+## Internal workforce contract harness
+
+A separate process-local mock in src/modules/internal-workforce implements strict versioned synthetic task/result contracts, company/role/department checks, digest-bound approval, manual bounded retries, idempotency and a bounded audit ledger. It performs no model, transport, filesystem, shell or tenant-database operation and is not connected to customer-facing ATMA or the CRM outbox. No endpoint, migration or dependency is added. See docs/WORKFORCE_CONTRACT_HARNESS.md for validation and the unimplemented production/Paperclip boundary.
+
 ## Phase 2A — transactional tenant events
 
 Opportunity creation now appends an immutable OutboxEvent in the existing CRM-entitled organization transaction with its audit. Replay-safe opportunity creation emits once. The event contract contains only an opaque opportunity reference, version, UUID, database timestamp and per-organization sequence. A bounded owner/admin internal pull interface validates envelopes; no delivery, checkpoint, provider, worker or public event API is activated. The protected inventory is fourteen tables. See docs/EVENT_FOUNDATION.md for ordering, consumer-idempotency and coordinated migration/grant rollback requirements.

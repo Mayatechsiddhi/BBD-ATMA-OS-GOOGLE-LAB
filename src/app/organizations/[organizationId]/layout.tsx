@@ -6,6 +6,8 @@ import {
   Settings,
   Layers3,
   ContactRound,
+  Tv,
+  QrCode,
 } from "lucide-react";
 import { organizationContext } from "@/modules/organizations/page-context";
 import { signOut } from "@/app/actions";
@@ -47,6 +49,7 @@ export default async function OrganizationLayout({
             ["/settings", Settings, "Organization settings"],
             ["/crm", ContactRound, "Client relationships"],
             ["/clinic", ContactRound, "Clinic CRM"],
+            ["/clinic/billing", QrCode, "0% UPI Billing"],
             ["/modules", Layers3, "Platform modules"],
           ].map(([path, Icon, label]) => {
             const I = Icon as typeof Building2;
@@ -61,6 +64,15 @@ export default async function OrganizationLayout({
               </Link>
             );
           })}
+          <Link
+            href={`/display/${organizationId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 rounded-md px-3 py-3 text-emerald-300 hover:bg-white/10"
+          >
+            <Tv size={18} aria-hidden />
+            Live TV Display ↗
+          </Link>
         </nav>
         <Link
           href="/organizations"

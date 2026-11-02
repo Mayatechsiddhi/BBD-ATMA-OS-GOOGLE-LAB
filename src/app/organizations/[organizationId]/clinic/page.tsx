@@ -90,6 +90,30 @@ export default async function ClinicDashboard({
           </CardContent>
         </Card>
       </div>
+
+      <div className="rounded-xl border border-indigo-500/20 bg-gradient-to-r from-indigo-950/30 to-purple-950/20 p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-zinc-100">
+                ✨ @google/genai Automated Clinic Workflow Triggers
+              </span>
+              <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-[11px] font-medium text-indigo-300">
+                gemini-3.8-flash
+              </span>
+            </div>
+            <p className="text-xs text-zinc-400">
+              Instantly draft bilingual patient recall scripts, qualify high-value leads, and optimize waiting-room triage.
+            </p>
+          </div>
+          <Link
+            href={`${base}/workflows`}
+            className="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-indigo-500"
+          >
+            Launch AI Workflow Triggers →
+          </Link>
+        </div>
+      </div>
     </>
   );
 }

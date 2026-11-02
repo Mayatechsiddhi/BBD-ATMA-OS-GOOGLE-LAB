@@ -1,5 +1,6 @@
 import { Prisma, type Organization } from "@/generated/prisma/client";
 import { db } from "./db";
+import { inMemoryDb } from "./in-memory-db";
 import { tenantTransactionOptions } from "./database-options";
 import {
   runtimePrivilegeAuditSQL,
@@ -69,6 +70,8 @@ export async function withActor<T>(
   invitationHash = "",
 ) {
   if (!userId) throw new Error("Actor required");
+  inMemoryDb.currentActorId = userId;
+  inMemoryDb.currentOrgId = organizationId;
   return db.$transaction(async (tx) => {
     await assertRuntimeDatabase(tx);
     await tx.$queryRaw`SELECT set_config('bbd.context_transaction',pg_current_xact_id()::text,true),set_config('bbd.actor_id',${userId},true),set_config('bbd.organization_id',${organizationId},true),set_config('bbd.invitation_hash',${invitationHash},true)`;

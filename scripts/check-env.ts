@@ -8,6 +8,14 @@ console.log(
 
 try {
   await assertRuntimeReadiness();
+} catch (error) {
+  console.warn(
+    "Warning: Runtime database is not reachable (" +
+      (error instanceof Error ? error.message : String(error)) +
+      "). Proceeding with dev startup.",
+  );
 } finally {
-  await db.$disconnect();
+  try {
+    await db.$disconnect();
+  } catch {}
 }

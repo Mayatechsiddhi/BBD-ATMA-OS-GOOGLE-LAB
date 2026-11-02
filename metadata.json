@@ -1,0 +1,7 @@
+{
+  "name": "BBD Master ATMA OS",
+  "description": "Bharath Bloom Digital business operating system",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -31,7 +31,7 @@ export function ClinicHeader({
       <p className="text-sm text-muted-foreground">{description}</p>
       <nav
         aria-label="Clinic"
-        className="flex flex-wrap gap-4 text-sm text-primary underline"
+        className="flex flex-wrap items-center gap-4 text-sm text-primary underline"
       >
         {[
           ["", "Dashboard"],
@@ -40,11 +40,22 @@ export function ClinicHeader({
           ["/schedules", "Doctor schedules"],
           ["/follow-ups", "Follow-ups"],
           ["/reception", "Reception & calling"],
+          ["/billing", "0% UPI Billing"],
+          ["/workflows", "AI Workflows ✨"],
+          ["/orchestrator", "Worker Orchestrator ⚡"],
         ].map(([path, label]) => (
           <Link key={path} href={base + path}>
             {label}
           </Link>
         ))}
+        <Link
+          href={`/display/${org}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700"
+        >
+          Live Token TV ↗
+        </Link>
       </nav>
     </div>
   );

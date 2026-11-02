@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 const config: NextConfig = {
+  output: "standalone",
   poweredByHeader: false,
   // Next 16.4's optional WebSocket debug stream reproduced RSC decoder errors
   // under repeated navigation/refresh. Keep debug data on the HTTP RSC stream;
@@ -27,7 +28,6 @@ const config: NextConfig = {
         source: "/(.*)",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
           // Native same-origin form POSTs need a non-null Origin for Next's CSRF check.
           // Cross-origin navigation still sends no referrer (including private paths).
           { key: "Referrer-Policy", value: "same-origin" },
@@ -40,7 +40,7 @@ const config: NextConfig = {
             value:
               "default-src 'self'; script-src 'self' 'unsafe-inline'" +
               (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : "") +
-              "; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+              "; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'",
           },
         ],
       },

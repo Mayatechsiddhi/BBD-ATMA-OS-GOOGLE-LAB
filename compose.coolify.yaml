@@ -1,0 +1,54 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: bbd-master-atma-os:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bbd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bbd}?sslmode=prefer
+      - RUNTIME_DATABASE_URL=postgresql://${POSTGRES_USER:-bbd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-bbd}?sslmode=prefer
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-https://${COOLIFY_FQDN:-app.bbdmaster.com}}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_FROM=${SMTP_FROM:-noreply@bbdmaster.com}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - AUTH_PROXY_SECRET=${AUTH_PROXY_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - "coolify.managed=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.bbd-app.rule=Host(`${COOLIFY_FQDN:-app.bbdmaster.com}`)"
+      - "traefik.http.routers.bbd-app.entrypoints=https"
+      - "traefik.http.routers.bbd-app.tls=true"
+      - "traefik.http.routers.bbd-app.tls.certresolver=letsencrypt"
+      - "traefik.http.services.bbd-app.loadbalancer.server.port=3000"
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bbd}
+      POSTGRES_DB: ${POSTGRES_DB:-bbd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - bbd_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bbd} -d ${POSTGRES_DB:-bbd}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bbd_postgres_data:
+    name: bbd_postgres_data

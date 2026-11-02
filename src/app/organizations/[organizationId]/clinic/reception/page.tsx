@@ -305,22 +305,30 @@ export default async function Reception({
                   <td>{t.status.toLowerCase()}</td>
                   <td>
                     {writable && (
-                      <form
-                        action={changeClinicToken.bind(null, org)}
-                        className="flex flex-wrap gap-2"
-                      >
-                        <input type="hidden" name="tokenId" value={t.id} />
-                        {queueTransitions[t.status].map((action) => (
-                          <Button
-                            key={action}
-                            name="action"
-                            value={action}
-                            variant="outline"
-                          >
-                            {action.toLowerCase()}
-                          </Button>
-                        ))}
-                      </form>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <form
+                          action={changeClinicToken.bind(null, org)}
+                          className="flex flex-wrap gap-2"
+                        >
+                          <input type="hidden" name="tokenId" value={t.id} />
+                          {queueTransitions[t.status].map((action) => (
+                            <Button
+                              key={action}
+                              name="action"
+                              value={action}
+                              variant="outline"
+                            >
+                              {action.toLowerCase()}
+                            </Button>
+                          ))}
+                        </form>
+                        <Link
+                          href={`/organizations/${org}/clinic/billing`}
+                          className="inline-flex items-center text-xs text-emerald-600 dark:text-emerald-400 font-semibold hover:underline"
+                        >
+                          0% UPI QR →
+                        </Link>
+                      </div>
                     )}
                   </td>
                 </tr>
